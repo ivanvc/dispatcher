@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/api/v1alpha1"
+	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 )
 
 // JobExecutionReconciler reconciles a JobExecution object
@@ -126,8 +126,8 @@ func (r *JobExecutionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // jobFromDefinition returns a Job from the JobTemplate.
 func (r *JobExecutionReconciler) jobFromDefinition(je *dispatcherv1alpha1.JobExecution, jt *dispatcherv1alpha1.JobTemplate) *batchv1.Job {
 	job := &batchv1.Job{
-		ObjectMeta: jt.Spec.Template.ObjectMeta,
-		Spec:       jt.Spec.Template.Spec,
+		ObjectMeta: jt.Spec.JobTemplateSpec.ObjectMeta,
+		Spec:       jt.Spec.JobTemplateSpec.Spec,
 	}
 	job.ObjectMeta.GenerateName = jt.Name + "-"
 	job.ObjectMeta.Namespace = jt.Namespace

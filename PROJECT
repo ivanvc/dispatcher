@@ -14,7 +14,7 @@ resources:
   domain: ivan.vc
   group: dispatcher
   kind: JobTemplate
-  path: github.com/ivanvc/dispatcher/api/v1alpha1
+  path: github.com/ivanvc/dispatcher/pkg/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -23,6 +23,6 @@ resources:
   domain: ivan.vc
   group: dispatcher
   kind: JobExecution
-  path: github.com/ivanvc/dispatcher/api/v1alpha1
+  path: github.com/ivanvc/dispatcher/pkg/api/v1alpha1
   version: v1alpha1
 version: "3"

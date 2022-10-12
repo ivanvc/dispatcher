@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/api/v1alpha1"
-	"github.com/ivanvc/dispatcher/controllers"
+	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
+	"github.com/ivanvc/dispatcher/pkg/controllers"
 	//+kubebuilder:scaffold:imports
 )
 

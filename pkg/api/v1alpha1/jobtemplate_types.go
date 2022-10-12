@@ -21,22 +21,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // +kubebuilder:object:root=true
 // JobTemplate is the Schema for the jobtemplate API
 type JobTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec JobTemplateSpec `json:"spec"`
 }
 
 // JobTemplateSpec defines the desired state of JobTemplate
 type JobTemplateSpec struct {
-	//+kubebuilder:validation:Required
-	Template batchv1.JobTemplateSpec `json:"template"`
+	// Specifies the job that will be created when invoking a JobExecution.
+	batchv1.JobTemplateSpec `json:"template"`
 }
 
 //+kubebuilder:object:root=true
