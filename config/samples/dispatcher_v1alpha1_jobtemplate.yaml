@@ -1,0 +1,6 @@
+apiVersion: dispatcher.ivan.vc/v1alpha1
+kind: JobTemplate
+metadata:
+  name: jobtemplate-sample
+spec:
+  # TODO(user): Add fields here

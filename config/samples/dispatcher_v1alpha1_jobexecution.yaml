@@ -1,0 +1,6 @@
+apiVersion: dispatcher.ivan.vc/v1alpha1
+kind: JobExecution
+metadata:
+  name: jobexecution-sample
+spec:
+  # TODO(user): Add fields here

@@ -1,0 +1,28 @@
+domain: ivan.vc
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: dispatcher
+repo: github.com/ivanvc/dispatcher
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: ivan.vc
+  group: dispatcher
+  kind: JobTemplate
+  path: github.com/ivanvc/dispatcher/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: ivan.vc
+  group: dispatcher
+  kind: JobExecution
+  path: github.com/ivanvc/dispatcher/api/v1alpha1
+  version: v1alpha1
+version: "3"

@@ -1,0 +1,20 @@
+# permissions for end users to view jobexecutions.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jobexecution-viewer-role
+rules:
+- apiGroups:
+  - dispatcher.ivan.vc
+  resources:
+  - jobexecutions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - dispatcher.ivan.vc
+  resources:
+  - jobexecutions/status
+  verbs:
+  - get

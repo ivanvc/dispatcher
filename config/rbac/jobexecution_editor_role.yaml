@@ -1,0 +1,24 @@
+# permissions for end users to edit jobexecutions.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jobexecution-editor-role
+rules:
+- apiGroups:
+  - dispatcher.ivan.vc
+  resources:
+  - jobexecutions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dispatcher.ivan.vc
+  resources:
+  - jobexecutions/status
+  verbs:
+  - get
