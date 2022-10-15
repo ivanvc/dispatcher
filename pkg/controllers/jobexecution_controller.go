@@ -18,15 +18,18 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	ref "k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 )
 
@@ -75,7 +78,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
-		je.Status.Phase = "Invalid JobTemplateName"
+		je.Status.State = v1alpha1.JobExecutionInvalidState
 		if err := r.Status().Update(ctx, je); err != nil {
 			log.Error(err, "Failed to update status")
 			return ctrl.Result{}, err
@@ -105,15 +108,33 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	je.Status.Phase = "Job created"
-	je.Status.Job = jobList.Items[0].Name
+	job := jobList.Items[0]
+	if job.Status.CompletionTime != nil {
+		je.Status.State = v1alpha1.JobExecutionCompletedState
+	} else if job.Status.StartTime != nil {
+		je.Status.State = v1alpha1.JobExecutionActiveState
+	} else {
+		je.Status.State = v1alpha1.JobExecutionWaitingState
+	}
+
+	jobRef, err := ref.GetReference(r.Scheme, &job)
+	if err != nil {
+		log.Error(err, "Unable to make reference to job", "job", job)
+		return ctrl.Result{}, err
+	}
+	je.Status.Job = *jobRef
+
 	err = r.Status().Update(ctx, je)
 	if err != nil {
 		log.Error(err, "Failed to update JobExecution status")
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	if je.Status.State == v1alpha1.JobExecutionCompletedState {
+		return ctrl.Result{}, nil
+	}
+
+	return ctrl.Result{RequeueAfter: time.Second * 15}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

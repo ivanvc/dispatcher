@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,11 +36,31 @@ type JobExecutionSpec struct {
 
 // JobExecutionStatus defines the observed state of JobExecution
 type JobExecutionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Phase string `json:"phase"`
-	Job   string `json:"job"`
+	// State has the current state of the Job, it could be one of:
+	// - "Invalid": The JobExecution is referring to a non-existent JobTemplate;
+	// - "Waiting": Waiting to be scheduled;
+	// - "Active": The Job is running;
+	// - "Completed": The Job finished running.
+	State JobExecutionState `json:"state"`
+
+	// Job holds the actual Job that is executing.
+	// +optional
+	Job corev1.ObjectReference `json:"job,omitempty"`
 }
+
+// JobExecutionState describes the current state of the Job.
+type JobExecutionState string
+
+const (
+	// JobTemplate does not exist.
+	JobExecutionInvalidState JobExecutionState = "Invalid"
+	// Job is waiting to be scheduled.
+	JobExecutionWaitingState JobExecutionState = "Waiting"
+	// Job is running.
+	JobExecutionActiveState JobExecutionState = "Active"
+	// Job has finished running.
+	JobExecutionCompletedState JobExecutionState = "Completed"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
