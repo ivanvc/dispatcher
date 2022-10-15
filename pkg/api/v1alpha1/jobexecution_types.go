@@ -30,8 +30,12 @@ type JobExecutionSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	//+kubebuilder:validation:Required
-	// The Job Definition to execute.
+	// The JobTemplate to execute.
 	JobTemplateName string `json:"jobTemplateName"`
+
+	// The execution arguments to pass to the JobTemplate's Job.
+	// +optional
+	Args string `json:"args,omitempty"`
 }
 
 // JobExecutionStatus defines the observed state of JobExecution

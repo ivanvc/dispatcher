@@ -35,8 +35,12 @@ spec:
           spec:
             description: JobExecutionSpec defines the desired state of JobExecution
             properties:
+              args:
+                description: The execution arguments to pass to the JobTemplate's
+                  Job.
+                type: string
               jobTemplateName:
-                description: The Job Definition to execute.
+                description: The JobTemplate to execute.
                 type: string
             required:
             - jobTemplateName
