@@ -40,30 +40,30 @@ type JobExecutionSpec struct {
 
 // JobExecutionStatus defines the observed state of JobExecution
 type JobExecutionStatus struct {
-	// State has the current state of the Job, it could be one of:
+	// Phase has the current state of the Job, it could be one of:
 	// - "Invalid": The JobExecution is referring to a non-existent JobTemplate;
 	// - "Waiting": Waiting to be scheduled;
 	// - "Active": The Job is running;
 	// - "Completed": The Job finished running.
-	State JobExecutionState `json:"state"`
+	Phase JobExecutionPhase `json:"phase"`
 
 	// Job holds the actual Job that is executing.
 	// +optional
 	Job corev1.ObjectReference `json:"job,omitempty"`
 }
 
-// JobExecutionState describes the current state of the Job.
-type JobExecutionState string
+// JobExecutionPhase describes the current state of the Job.
+type JobExecutionPhase string
 
 const (
 	// JobTemplate does not exist.
-	JobExecutionInvalidState JobExecutionState = "Invalid"
+	JobExecutionInvalidPhase JobExecutionPhase = "Invalid"
 	// Job is waiting to be scheduled.
-	JobExecutionWaitingState JobExecutionState = "Waiting"
+	JobExecutionWaitingPhase JobExecutionPhase = "Waiting"
 	// Job is running.
-	JobExecutionActiveState JobExecutionState = "Active"
+	JobExecutionActivePhase JobExecutionPhase = "Active"
 	// Job has finished running.
-	JobExecutionCompletedState JobExecutionState = "Completed"
+	JobExecutionCompletedPhase JobExecutionPhase = "Completed"
 )
 
 //+kubebuilder:object:root=true

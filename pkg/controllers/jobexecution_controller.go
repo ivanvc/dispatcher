@@ -78,7 +78,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
-		je.Status.State = v1alpha1.JobExecutionInvalidState
+		je.Status.Phase = v1alpha1.JobExecutionInvalidPhase
 		if err := r.Status().Update(ctx, je); err != nil {
 			log.Error(err, "Failed to update status")
 			return ctrl.Result{}, err
@@ -110,11 +110,11 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	job := jobList.Items[0]
 	if job.Status.CompletionTime != nil {
-		je.Status.State = v1alpha1.JobExecutionCompletedState
+		je.Status.Phase = v1alpha1.JobExecutionCompletedPhase
 	} else if job.Status.StartTime != nil {
-		je.Status.State = v1alpha1.JobExecutionActiveState
+		je.Status.Phase = v1alpha1.JobExecutionActivePhase
 	} else {
-		je.Status.State = v1alpha1.JobExecutionWaitingState
+		je.Status.Phase = v1alpha1.JobExecutionWaitingPhase
 	}
 
 	jobRef, err := ref.GetReference(r.Scheme, &job)
@@ -130,7 +130,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if je.Status.State == v1alpha1.JobExecutionCompletedState {
+	if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
 		return ctrl.Result{}, nil
 	}
 

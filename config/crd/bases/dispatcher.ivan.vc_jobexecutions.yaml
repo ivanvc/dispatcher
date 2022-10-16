@@ -85,14 +85,14 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              state:
-                description: 'State has the current state of the Job, it could be
+              phase:
+                description: 'Phase has the current state of the Job, it could be
                   one of: - "Invalid": The JobExecution is referring to a non-existent
                   JobTemplate; - "Waiting": Waiting to be scheduled; - "Active": The
                   Job is running; - "Completed": The Job finished running.'
                 type: string
             required:
-            - state
+            - phase
             type: object
         type: object
     served: true
