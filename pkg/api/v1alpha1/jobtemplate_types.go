@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,7 +34,11 @@ type JobTemplate struct {
 // JobTemplateSpec defines the desired state of JobTemplate
 type JobTemplateSpec struct {
 	// Specifies the job that will be created when invoking a JobExecution.
-	batchv1.JobTemplateSpec `json:"template"`
+	batchv1.JobTemplateSpec `json:"jobTemplate"`
+
+	// Specifies the PVC that will be created when invoking a PVCExceution.
+	// +optional
+	corev1.PersistentVolumeClaimSpec `json:"pvcTemplate"`
 }
 
 //+kubebuilder:object:root=true
