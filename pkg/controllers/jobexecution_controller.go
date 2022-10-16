@@ -59,9 +59,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := ctrllog.FromContext(ctx)
 
 	je := new(dispatcherv1alpha1.JobExecution)
-	err := r.Get(ctx, req.NamespacedName, je)
-
-	if err != nil {
+	if err := r.Get(ctx, req.NamespacedName, je); err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("JobExecution resource not found")
 			return ctrl.Result{}, nil
@@ -72,11 +70,10 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	jt := new(dispatcherv1alpha1.JobTemplate)
-	err = r.Get(ctx, types.NamespacedName{
+	if err := r.Get(ctx, types.NamespacedName{
 		Name:      je.Spec.JobTemplateName,
 		Namespace: je.Namespace,
-	}, jt)
-	if err != nil {
+	}, jt); err != nil {
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
 		je.Status.Phase = v1alpha1.JobExecutionInvalidPhase
@@ -87,22 +84,20 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	jobList := new(batchv1.JobList)
 	opts := []client.ListOption{
 		client.InNamespace(je.Namespace),
 		client.MatchingLabels{"controller-uid": string(je.ObjectMeta.UID)},
 	}
 
-	err = r.List(ctx, jobList, opts...)
-	if err != nil {
+	jobList := new(batchv1.JobList)
+	if err := r.List(ctx, jobList, opts...); err != nil {
 		log.Error(err, "Failed to get Job")
 		return ctrl.Result{}, err
 	}
 	if len(jobList.Items) == 0 {
 		job := r.generateJobFromDefinition(je, jt)
 		log.Info("Creating Job", "Job.Namespace", job.Namespace)
-		err = r.Create(ctx, job)
-		if err != nil {
+		if err := r.Create(ctx, job); err != nil {
 			log.Error(err, "Failed to create new Job", "Job.Namespace", job.Namespace)
 			return ctrl.Result{}, err
 		}
@@ -125,8 +120,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	je.Status.Job = *jobRef
 
-	err = r.Status().Update(ctx, je)
-	if err != nil {
+	if err := r.Status().Update(ctx, je); err != nil {
 		log.Error(err, "Failed to update JobExecution status")
 		return ctrl.Result{}, err
 	}
