@@ -21,6 +21,7 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -98,7 +99,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 	if len(jobList.Items) == 0 {
-		job := r.jobFromDefinition(je, jt)
+		job := r.generateJobFromDefinition(je, jt)
 		log.Info("Creating Job", "Job.Namespace", job.Namespace)
 		err = r.Create(ctx, job)
 		if err != nil {
@@ -144,8 +145,8 @@ func (r *JobExecutionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// jobFromDefinition returns a Job from the JobTemplate.
-func (r *JobExecutionReconciler) jobFromDefinition(je *dispatcherv1alpha1.JobExecution, jt *dispatcherv1alpha1.JobTemplate) *batchv1.Job {
+// generateJobFromDefinition returns a Job from the JobTemplate.
+func (r *JobExecutionReconciler) generateJobFromDefinition(je *dispatcherv1alpha1.JobExecution, jt *dispatcherv1alpha1.JobTemplate) *batchv1.Job {
 	job := &batchv1.Job{
 		ObjectMeta: jt.Spec.JobTemplateSpec.ObjectMeta,
 		Spec:       jt.Spec.JobTemplateSpec.Spec,
@@ -157,6 +158,23 @@ func (r *JobExecutionReconciler) jobFromDefinition(je *dispatcherv1alpha1.JobExe
 	}
 	job.ObjectMeta.Labels["controller-uid"] = string(je.ObjectMeta.UID)
 
+	envVar := corev1.EnvVar{Name: "EXECUTION_ARGS", Value: je.Spec.Args}
+	job.Spec.Template.Spec.Containers =
+		generateContainers(envVar, job.Spec.Template.Spec.Containers)
+	job.Spec.Template.Spec.InitContainers =
+		generateContainers(envVar, job.Spec.Template.Spec.InitContainers)
+
 	ctrl.SetControllerReference(je, job, r.Scheme)
 	return job
+}
+
+// generateContainers generates a list of containers injecting the passed
+// environment variable.
+func generateContainers(envVar corev1.EnvVar, containers []corev1.Container) []corev1.Container {
+	result := []corev1.Container{}
+	for _, c := range containers {
+		c.Env = append(c.Env, envVar)
+		result = append(result, c)
+	}
+	return result
 }

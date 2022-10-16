@@ -6,16 +6,11 @@ import (
 
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const (
-	namespace = "default"
-)
-
 type executeJobHandler struct {
-	client.Client
+	*Server
 }
 
 func (e *executeJobHandler) registerHandler() {
@@ -23,22 +18,38 @@ func (e *executeJobHandler) registerHandler() {
 }
 
 func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	ctx := req.Context()
 	log := ctrllog.FromContext(ctx)
-	name := strings.TrimPrefix(req.URL.Path, "/execute/")
-	jobExecution := &v1alpha1.JobExecution{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: name + "-",
-			Namespace:    namespace,
-		},
-		Spec: v1alpha1.JobExecutionSpec{
-			JobTemplateName: name,
-		},
-	}
-	log.Info("Creating JobExecution", "jobTemplateName", name)
+	jobExecution := e.createJobExecution(req)
+
+	log.Info("Creating JobExecution")
 	if err := e.Create(ctx, jobExecution); err != nil {
-		log.Error(err, "Error creating JobExecution", "jobTemplateName", name)
+		log.Error(err, "Error creating JobExecution")
 		w.WriteHeader(http.StatusNotAcceptable)
 	}
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (e *executeJobHandler) createJobExecution(req *http.Request) *v1alpha1.JobExecution {
+	name := strings.TrimPrefix(req.URL.Path, "/execute/")
+	body := parseBody(req)
+	if body == nil {
+		return nil
+	}
+
+	return &v1alpha1.JobExecution{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: name + "-",
+			Namespace:    body.getNamespace(),
+		},
+		Spec: v1alpha1.JobExecutionSpec{
+			JobTemplateName: name,
+			Args:            body.getArgs(),
+		},
+	}
 }

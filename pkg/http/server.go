@@ -36,5 +36,5 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) registerHandlers() {
-	(&executeJobHandler{s.Client}).registerHandler()
+	(&executeJobHandler{s}).registerHandler()
 }
