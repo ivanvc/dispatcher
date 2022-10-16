@@ -35,7 +35,7 @@ type JobExecutionSpec struct {
 
 	// The execution arguments to pass to the JobTemplate's Job.
 	// +optional
-	Args string `json:"args,omitempty"`
+	Payload string `json:"payload,omitempty"`
 }
 
 // JobExecutionStatus defines the observed state of JobExecution
