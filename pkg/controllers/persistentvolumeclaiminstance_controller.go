@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/api/v1alpha1"
+	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 )
 
 // PersistentVolumeClaimInstanceReconciler reconciles a PersistentVolumeClaimInstance object

@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,14 +29,30 @@ type PersistentVolumeClaimInstanceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of PersistentVolumeClaimInstance. Edit persistentvolumeclaiminstance_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	//+kubebuilder:validation:Required
+	// The JobTemplate from where to read the PersistentVolumeClaimSpec from.
+	JobTemplateName string `json:"jobTemplateName"`
+
+	//+kubebuilder:validation:Required
+	// A UUID for the execution.
+	UUID string `json:"uuid"`
+
+	//+kubebuilder:validation:Required
+	// The Timestamp of when the execution was created.
+	Timestamp metav1.Time `json:"timestamp"`
 }
 
 // PersistentVolumeClaimInstanceStatus defines the observed state of PersistentVolumeClaimInstance
 type PersistentVolumeClaimInstanceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Phase has the current state of the PersistentVolumeClaim, it could be one of:
+	// - "Invalid": The PersistentVolumeClaimInstance is referring to a non-existent JobTemplate;
+	// - "Waiting": Waiting to be created;
+	// - "Created": The PVC was created;
+	Phase PersistentVolumeClaimInstancePhase `json:"phase"`
+
+	// PersistentVolumeClaim holds the actual claim.
+	// +optional
+	PersistentVolumeClaim corev1.ObjectReference `json:"job,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -62,3 +79,15 @@ type PersistentVolumeClaimInstanceList struct {
 func init() {
 	SchemeBuilder.Register(&PersistentVolumeClaimInstance{}, &PersistentVolumeClaimInstanceList{})
 }
+
+// PersistentVolumeClaimInstancePhase describes the current state of the PVC.
+type PersistentVolumeClaimInstancePhase string
+
+const (
+	// JobTemplate does not exist.
+	PersistentVolumeClaimInstanceInvalidPhase PersistentVolumeClaimInstancePhase = "Invalid"
+	// Waiting for the PVC be created.
+	PersistentVolumeClaimInstanceWaitingPhase PersistentVolumeClaimInstancePhase = "Waiting"
+	// The PVC was created.
+	PersistentVolumeClaimInstanceCreatedPhase PersistentVolumeClaimInstancePhase = "Created"
+)
