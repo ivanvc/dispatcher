@@ -33,12 +33,12 @@ type JobTemplate struct {
 
 // JobTemplateSpec defines the desired state of JobTemplate
 type JobTemplateSpec struct {
-	// Specifies the job that will be created when executing the Job.
+	// Specifies the Job that will be created when executing the Job.
 	batchv1.JobTemplateSpec `json:"jobTemplate"`
 
-	// Specifies the list of PVCs that will be created when executing the Job.
+	// Specifies the PersistentVolumeClaim that will be created when executing the Job.
 	// +optional
-	PersistentVolumeClaims []corev1.PersistentVolumeClaimSpec `json:"pvcTemplate"`
+	corev1.PersistentVolumeClaimSpec `json:"pvcTemplate"`
 }
 
 //+kubebuilder:object:root=true
