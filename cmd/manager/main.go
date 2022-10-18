@@ -102,6 +102,13 @@ func main() {
 		setupLog.Error(err, "Unable to create controller", "controller", "JobExecution")
 		os.Exit(1)
 	}
+	if err = (&controllers.PersistentVolumeClaimInstanceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaimInstance")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
