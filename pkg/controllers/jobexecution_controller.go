@@ -143,8 +143,8 @@ func (r *JobExecutionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // Generates a Job from a JobTemplate, by applying JobExecution's fields.
-func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcherv1alpha1.JobTemplate, jobExecution *dispatcherv1alpha1.JobExecution) *batchv1.Job {
-	jobTpl, err := template.BuildJobTemplate(jobTemplate.Spec.JobTemplateSpec, jobExecution)
+func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcherv1alpha1.JobTemplate, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
+	jobTpl, err := template.BuildJob(&jobTemplate.Spec.JobTemplateSpec, jobExecution)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +159,7 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcher
 		job.ObjectMeta.Labels = make(map[string]string)
 	}
 	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.ObjectMeta.UID)
+	job.ObjectMeta.Labels["job-execution-name"] = jobExecution.ObjectMeta.Name
 
 	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
 	return job, nil
