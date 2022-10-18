@@ -33,9 +33,17 @@ type JobExecutionSpec struct {
 	// The JobTemplate to execute.
 	JobTemplateName string `json:"jobTemplateName"`
 
+	//+optional
 	// The execution arguments to pass to the JobTemplate's Job.
-	// +optional
 	Payload string `json:"payload,omitempty"`
+
+	//+kubebuilder:validation:Required
+	// A UUID for the execution.
+	UUID string `json:"uuid"`
+
+	//+kubebuilder:validation:Required
+	// The Timestamp of when the execution was created.
+	Timestamp metav1.Time `json:"timestamp"`
 }
 
 // JobExecutionStatus defines the observed state of JobExecution

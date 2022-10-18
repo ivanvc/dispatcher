@@ -42,8 +42,17 @@ spec:
                 description: The execution arguments to pass to the JobTemplate's
                   Job.
                 type: string
+              timestamp:
+                description: The Timestamp of when the execution was created.
+                format: date-time
+                type: string
+              uuid:
+                description: A UUID for the execution.
+                type: string
             required:
             - jobTemplateName
+            - timestamp
+            - uuid
             type: object
           status:
             description: JobExecutionStatus defines the observed state of JobExecution
