@@ -95,7 +95,10 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 	if len(jobList.Items) == 0 {
-		job := r.generateJobFromDefinition(ctx, je, jt)
+		job, err := r.generateJobFromTemplate(jt, je)
+		if err != nil {
+			log.Error(err, "Error generating Job")
+		}
 		log.Info("Creating Job", "Job.Namespace", job.Namespace)
 		if err := r.Create(ctx, job); err != nil {
 			log.Error(err, "Failed to create new Job", "Job.Namespace", job.Namespace)
@@ -139,16 +142,24 @@ func (r *JobExecutionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// generateJobFromDefinition returns a Job from the JobTemplate.
-func (r *JobExecutionReconciler) generateJobFromDefinition(ctx context.Context, je *dispatcherv1alpha1.JobExecution, jt *dispatcherv1alpha1.JobTemplate) *batchv1.Job {
-	job := template.NewJobFromTemplate(ctx, jt.Spec.JobTemplateSpec, je.Spec.Payload)
-	job.ObjectMeta.GenerateName = jt.Name + "-"
-	job.ObjectMeta.Namespace = jt.Namespace
+// Generates a Job from a JobTemplate, by applying JobExecution's fields.
+func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcherv1alpha1.JobTemplate, jobExecution *dispatcherv1alpha1.JobExecution) *batchv1.Job {
+	jobTpl, err := template.BuildJobTemplate(jobTemplate.Spec.JobTemplateSpec, jobExecution)
+	if err != nil {
+		return nil, err
+	}
+	job := &batchv1.Job{
+		ObjectMeta: jobTpl.ObjectMeta,
+		Spec:       jobTpl.Spec,
+	}
+
+	job.ObjectMeta.GenerateName = jobTemplate.Name + "-"
+	job.ObjectMeta.Namespace = jobTemplate.Namespace
 	if job.ObjectMeta.Labels == nil {
 		job.ObjectMeta.Labels = make(map[string]string)
 	}
-	job.ObjectMeta.Labels["controller-uid"] = string(je.ObjectMeta.UID)
+	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.ObjectMeta.UID)
 
-	ctrl.SetControllerReference(je, job, r.Scheme)
-	return job
+	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
+	return job, nil
 }
