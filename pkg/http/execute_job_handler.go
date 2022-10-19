@@ -94,8 +94,6 @@ func createJobExecution(name, ns, uuid string, timestamp metav1.Time, body io.Re
 		Spec: v1alpha1.JobExecutionSpec{
 			JobTemplateName: name,
 			Payload:         b.String(),
-			UUID:            uuid,
-			Timestamp:       timestamp,
 		},
 	}
 }

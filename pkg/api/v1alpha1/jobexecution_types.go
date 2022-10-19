@@ -36,14 +36,6 @@ type JobExecutionSpec struct {
 	//+optional
 	// The execution arguments to pass to the JobTemplate's Job.
 	Payload string `json:"payload,omitempty"`
-
-	//+kubebuilder:validation:Required
-	// A UUID for the execution.
-	UUID string `json:"uuid"`
-
-	//+kubebuilder:validation:Required
-	// The Timestamp of when the execution was created.
-	Timestamp metav1.Time `json:"timestamp"`
 }
 
 // JobExecutionStatus defines the observed state of JobExecution
@@ -55,9 +47,12 @@ type JobExecutionStatus struct {
 	// - "Completed": The Job finished running.
 	Phase JobExecutionPhase `json:"phase"`
 
-	// Job holds the actual Job that is executing.
+	// Job has a reference to the Job from this execution.
 	// +optional
 	Job corev1.ObjectReference `json:"job,omitempty"`
+
+	// PersistentVolumeClaim has a reference to the PVC from this execution.
+	PersistentVolumeClaim corev1.ObjectReference `json:"persistentVolumeClaim,omitempty"`
 }
 
 // JobExecutionPhase describes the current state of the Job.

@@ -5,12 +5,10 @@ import (
 	"io"
 	"text/template"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 )
 
-func BuildPersistentVolumeClaim(pvcTemplateSpec *corev1.PersistentVolumeClaimSpec, pvcInstance *v1alpha1.PersistentVolumeClaimInstance) (*corev1.PersistentVolumeClaimSpec, error) {
+func BuildPersistentVolumeClaim(pvcTemplateSpec *v1alpha1.PersistentVolumeClaimTemplateSpec, jobExecution *v1alpha1.JobExecution) (*v1alpha1.PersistentVolumeClaimTemplateSpec, error) {
 	tpl, err := json.Marshal(&pvcTemplateSpec)
 	if err != nil {
 		return nil, err
@@ -18,11 +16,11 @@ func BuildPersistentVolumeClaim(pvcTemplateSpec *corev1.PersistentVolumeClaimSpe
 	t := template.Must(template.New("pvc").Parse(string(tpl)))
 
 	r, w := io.Pipe()
-	if err := t.Execute(w, newEnvironmentFromPVCInstance(pvcInstance)); err != nil {
+	if err := t.Execute(w, newEnvironment(jobExecution)); err != nil {
 		return nil, err
 	}
 
-	var pvcTpl *corev1.PersistentVolumeClaimSpec
+	var pvcTpl *v1alpha1.PersistentVolumeClaimTemplateSpec
 	if err := json.NewDecoder(r).Decode(&pvcTpl); err != nil {
 		return nil, err
 	}

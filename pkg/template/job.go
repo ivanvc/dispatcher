@@ -18,7 +18,7 @@ func BuildJob(jobTemplateSpec *batchv1.JobTemplateSpec, jobExecution *v1alpha1.J
 	t := template.Must(template.New("job").Parse(string(tpl)))
 
 	r, w := io.Pipe()
-	if err := t.Execute(w, newEnvironmentFromJobExecution(jobExecution)); err != nil {
+	if err := t.Execute(w, newEnvironment(jobExecution)); err != nil {
 		return nil, err
 	}
 

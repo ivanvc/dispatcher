@@ -21,6 +21,7 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -89,6 +90,27 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		client.MatchingLabels{"controller-uid": string(je.ObjectMeta.UID)},
 	}
 
+	if &jt.Spec.PersistentVolumeClaimTemplateSpec != nil {
+		pvcList := new(corev1.PersistentVolumeClaimList)
+		if err := r.List(ctx, pvcList, opts...); err != nil {
+			log.Error(err, "Failed to get PVC")
+			return ctrl.Result{}, err
+		}
+
+		if len(pvcList.Items) == 0 {
+			pvc, err := r.generatePVCFromTemplate(jt, je)
+			if err != nil {
+				log.Error(err, "Error generating PVC")
+			}
+			log.Info("Creating PVC", "PVC.Namespace", pvc.Namespace)
+			if err := r.Create(ctx, pvc); err != nil {
+				log.Error(err, "Failed to create new PVC", "PVC.Namespace", pvc.Namespace)
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
 	jobList := new(batchv1.JobList)
 	if err := r.List(ctx, jobList, opts...); err != nil {
 		log.Error(err, "Failed to get Job")
@@ -153,7 +175,6 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcher
 		Spec:       jobTpl.Spec,
 	}
 
-	job.ObjectMeta.GenerateName = jobTemplate.Name + "-"
 	job.ObjectMeta.Namespace = jobTemplate.Namespace
 	if job.ObjectMeta.Labels == nil {
 		job.ObjectMeta.Labels = make(map[string]string)
@@ -163,4 +184,26 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcher
 
 	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
 	return job, nil
+}
+
+// Generates a PVC from a JobTemplate, by applying JobExecution's fields.
+func (r *JobExecutionReconciler) generatePVCFromTemplate(jobTemplate *dispatcherv1alpha1.JobTemplate, jobExecution *dispatcherv1alpha1.JobExecution) (*corev1.PersistentVolumeClaim, error) {
+	pvcTpl, err := template.BuildPersistentVolumeClaim(&jobTemplate.Spec.PersistentVolumeClaimTemplateSpec, jobExecution)
+	if err != nil {
+		return nil, err
+	}
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: pvcTpl.ObjectMeta,
+		Spec:       pvcTpl.Spec,
+	}
+
+	pvc.ObjectMeta.Namespace = pvc.Namespace
+	if pvc.ObjectMeta.Labels == nil {
+		pvc.ObjectMeta.Labels = make(map[string]string)
+	}
+	pvc.ObjectMeta.Labels["controller-uid"] = string(jobExecution.ObjectMeta.UID)
+	pvc.ObjectMeta.Labels["job-execution-name"] = jobExecution.ObjectMeta.Name
+
+	ctrl.SetControllerReference(jobExecution, pvc, r.Scheme)
+	return pvc, nil
 }

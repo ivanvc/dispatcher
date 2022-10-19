@@ -38,11 +38,17 @@ type JobTemplateSpec struct {
 
 	// Specifies the PersistentVolumeClaim that will be created when executing the Job.
 	// +optional
-	corev1.PersistentVolumeClaimSpec `json:"pvcTemplate"`
+	PersistentVolumeClaimTemplateSpec `json:"persistentVolumeClaimTemplate,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// PersistentVolumeClaimTemplateSpec defines the desired state of a PersistentVolumeClaimTemplate.
+type PersistentVolumeClaimTemplateSpec struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	Spec corev1.PersistentVolumeClaimSpec `json:"spec"`
+}
+
+// +kubebuilder:object:root=true
 // JobTemplateList contains a list of JobTemplate
 type JobTemplateList struct {
 	metav1.TypeMeta `json:",inline"`

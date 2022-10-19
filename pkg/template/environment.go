@@ -13,11 +13,11 @@ type Environment struct {
 	Payload   string
 }
 
-func newEnvironmentFromJobExecution(jobExecution *v1alpha1.JobExecution) *Environment {
+func newEnvironment(jobExecution *v1alpha1.JobExecution) *Environment {
 	return &Environment{
-		UUID:      jobExecution.Spec.UUID,
-		ShortUUID: strings.Split(string(jobExecution.Spec.UUID), "-")[0],
-		Date:      jobExecution.Spec.Timestamp.Format("2006-01-02"),
+		UUID:      string(jobExecution.ObjectMeta.UID),
+		ShortUUID: strings.Split(string(jobExecution.ObjectMeta.UID), "-")[0],
+		Date:      jobExecution.ObjectMeta.CreationTimestamp.Format("2006-01-02"),
 		Payload:   jobExecution.Spec.Payload,
 	}
 }
