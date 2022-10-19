@@ -178,6 +178,9 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcher
 	}
 
 	job.ObjectMeta.Namespace = jobTemplate.Namespace
+	if len(job.ObjectMeta.Name) == 0 && len(job.ObjectMeta.GenerateName) == 0 {
+		job.ObjectMeta.GenerateName = jobExecution.ObjectMeta.Name + "-"
+	}
 	if job.ObjectMeta.Labels == nil {
 		job.ObjectMeta.Labels = make(map[string]string)
 	}
@@ -200,6 +203,9 @@ func (r *JobExecutionReconciler) generatePVCFromTemplate(jobTemplate *dispatcher
 	}
 
 	pvc.ObjectMeta.Namespace = pvc.Namespace
+	if len(pvc.ObjectMeta.Name) == 0 && len(pvc.ObjectMeta.GenerateName) == 0 {
+		pvc.ObjectMeta.GenerateName = jobExecution.ObjectMeta.Name + "-"
+	}
 	if pvc.ObjectMeta.Labels == nil {
 		pvc.ObjectMeta.Labels = make(map[string]string)
 	}
