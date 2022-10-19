@@ -1,6 +1,7 @@
 package template
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
@@ -14,11 +15,12 @@ type Environment struct {
 }
 
 func newEnvironment(jobExecution *v1alpha1.JobExecution) *Environment {
+	escapedPayload := fmt.Sprintf("%q", jobExecution.Spec.Payload)
 	return &Environment{
 		UUID:      string(jobExecution.ObjectMeta.UID),
 		ShortUUID: strings.Split(string(jobExecution.ObjectMeta.UID), "-")[0],
-		Date:      jobExecution.ObjectMeta.CreationTimestamp.Format("2006-01-02"),
-		Payload:   jobExecution.Spec.Payload,
+		Date:      jobExecution.ObjectMeta.CreationTimestamp.Format("20060102"),
+		Payload:   escapedPayload[1 : len(escapedPayload)-1],
 	}
 }
 
