@@ -91,7 +91,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		client.MatchingLabels{"controller-uid": string(je.ObjectMeta.UID)},
 	}
 
-	if &jt.Spec.PersistentVolumeClaimTemplateSpec != nil {
+	if jt.Spec.PersistentVolumeClaimTemplateSpec.Spec.Resources.Size() > 0 {
 		pvcList := new(corev1.PersistentVolumeClaimList)
 		if err := r.List(ctx, pvcList, opts...); err != nil {
 			log.Error(err, "Failed to get PVC")
@@ -121,6 +121,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		job, err := r.generateJobFromTemplate(jt, je)
 		if err != nil {
 			log.Error(err, "Error generating Job")
+			return ctrl.Result{}, err
 		}
 		log.Info("Creating Job", "Job.Namespace", job.Namespace)
 		if err := r.Create(ctx, job); err != nil {
