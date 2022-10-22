@@ -71,6 +71,10 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
+		return ctrl.Result{}, nil
+	}
+
 	jt := new(dispatcherv1alpha1.JobTemplate)
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      je.Spec.JobTemplateName,
@@ -150,10 +154,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := r.Status().Update(ctx, je); err != nil {
 		log.Error(err, "Failed to update JobExecution status")
 		return ctrl.Result{}, err
-	}
-
-	if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
-		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{RequeueAfter: time.Second * 15}, nil
