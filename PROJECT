@@ -25,13 +25,4 @@ resources:
   kind: JobExecution
   path: github.com/ivanvc/dispatcher/pkg/api/v1alpha1
   version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: ivan.vc
-  group: dispatcher
-  kind: PersistentVolumeClaimInstance
-  path: github.com/ivanvc/dispatcher/api/v1alpha1
-  version: v1alpha1
 version: "3"

@@ -23,11 +23,3 @@ func newEnvironment(jobExecution *v1alpha1.JobExecution) *Environment {
 		Payload:   escapedPayload[1 : len(escapedPayload)-1],
 	}
 }
-
-func newEnvironmentFromPVCInstance(pvcInstance *v1alpha1.PersistentVolumeClaimInstance) *Environment {
-	return &Environment{
-		UUID:      pvcInstance.Spec.UUID,
-		ShortUUID: strings.Split(string(pvcInstance.Spec.UUID), "-")[0],
-		Date:      pvcInstance.Spec.Timestamp.Format("2006-01-02"),
-	}
-}
