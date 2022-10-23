@@ -48,6 +48,10 @@ type PersistentVolumeClaimTemplateSpec struct {
 	Spec corev1.PersistentVolumeClaimSpec `json:"spec"`
 }
 
+func (j *JobTemplate) HasPersistentVolumeClaim() bool {
+	return j.Spec.PersistentVolumeClaimTemplateSpec.Spec.Resources.Size() > 0
+}
+
 // +kubebuilder:object:root=true
 // JobTemplateList contains a list of JobTemplate
 type JobTemplateList struct {

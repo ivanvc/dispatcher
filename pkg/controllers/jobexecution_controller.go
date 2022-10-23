@@ -72,48 +72,36 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
+		log.Info("JobExecution is already completed", "JobExecution", je.ObjectMeta.Name)
 		return ctrl.Result{}, nil
 	}
 
-	jt := new(dispatcherv1alpha1.JobTemplate)
-	if err := r.Get(ctx, types.NamespacedName{
-		Name:      je.Spec.JobTemplateName,
-		Namespace: je.Namespace,
-	}, jt); err != nil {
-		// Error reading the object - requeue the request.
+	jt, err := r.getJobTemplate(ctx, je)
+	if err != nil {
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
-		je.Status.Phase = v1alpha1.JobExecutionInvalidPhase
-		if err := r.Status().Update(ctx, je); err != nil {
-			log.Error(err, "Failed to update status")
+		return ctrl.Result{}, err
+	}
+
+	if jt.HasPersistentVolumeClaim() {
+		pvc, err := r.getPersistentVolumeClaim(ctx, je)
+		if err != nil {
+			log.Error(err, "Failed to get Persistent Volume Claim")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
+
+		if pvc == nil {
+			if err := r.createPersistentVolumeClaim(ctx, je, jt); err != nil {
+				log.Error(err, "Failed to create Persistent Volume Claim")
+				return ctrl.Result{}, err
+			}
+			log.Error(err, "Created Persistent Volume Claim, requeueing")
+			return ctrl.Result{Requeue: true}, nil
+		}
 	}
 
 	opts := []client.ListOption{
 		client.InNamespace(je.Namespace),
 		client.MatchingLabels{"controller-uid": string(je.ObjectMeta.UID)},
-	}
-
-	if jt.Spec.PersistentVolumeClaimTemplateSpec.Spec.Resources.Size() > 0 {
-		pvcList := new(corev1.PersistentVolumeClaimList)
-		if err := r.List(ctx, pvcList, opts...); err != nil {
-			log.Error(err, "Failed to get PVC")
-			return ctrl.Result{}, err
-		}
-
-		if len(pvcList.Items) == 0 {
-			pvc, err := r.generatePVCFromTemplate(jt, je)
-			if err != nil {
-				log.Error(err, "Error generating PVC")
-			}
-			log.Info("Creating PVC", "PVC.Namespace", pvc.Namespace)
-			if err := r.Create(ctx, pvc); err != nil {
-				log.Error(err, "Failed to create new PVC", "PVC.Namespace", pvc.Namespace)
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
 	}
 
 	jobList := new(batchv1.JobList)
@@ -192,7 +180,7 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcher
 }
 
 // Generates a PVC from a JobTemplate, by applying JobExecution's fields.
-func (r *JobExecutionReconciler) generatePVCFromTemplate(jobTemplate *dispatcherv1alpha1.JobTemplate, jobExecution *dispatcherv1alpha1.JobExecution) (*corev1.PersistentVolumeClaim, error) {
+func (r *JobExecutionReconciler) generatePersitentVolumeClaimFromTemplate(jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*corev1.PersistentVolumeClaim, error) {
 	pvcTpl, err := template.BuildPersistentVolumeClaim(&jobTemplate.Spec.PersistentVolumeClaimTemplateSpec, jobExecution)
 	if err != nil {
 		return nil, err
@@ -214,4 +202,46 @@ func (r *JobExecutionReconciler) generatePVCFromTemplate(jobTemplate *dispatcher
 
 	ctrl.SetControllerReference(jobExecution, pvc, r.Scheme)
 	return pvc, nil
+}
+
+// TODO: One fn. to update the phase
+
+func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*dispatcherv1alpha1.JobTemplate, error) {
+	jt := new(dispatcherv1alpha1.JobTemplate)
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      jobExecution.Spec.JobTemplateName,
+		Namespace: jobExecution.Namespace,
+	}, jt); err != nil {
+		jobExecution.Status.Phase = v1alpha1.JobExecutionInvalidPhase
+		if err := r.Status().Update(ctx, jobExecution); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+	return jt, nil
+}
+
+func (r *JobExecutionReconciler) getPersistentVolumeClaim(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*corev1.PersistentVolumeClaim, error) {
+	opts := []client.ListOption{
+		client.InNamespace(jobExecution.Namespace),
+		client.MatchingLabels{"controller-uid": string(jobExecution.ObjectMeta.UID)},
+	}
+
+	pvcList := new(corev1.PersistentVolumeClaimList)
+	if err := r.List(ctx, pvcList, opts...); err != nil {
+		return nil, err
+	}
+
+	return &pvcList.Items[0], nil
+}
+
+func (r *JobExecutionReconciler) createPersistentVolumeClaim(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) error {
+	pvc, err := r.generatePersitentVolumeClaimFromTemplate(jobExecution, jobTemplate)
+	if err != nil {
+		return err
+	}
+	if err := r.Create(ctx, pvc); err != nil {
+		return err
+	}
+	return nil
 }
