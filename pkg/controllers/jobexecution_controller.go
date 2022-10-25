@@ -94,36 +94,34 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				log.Error(err, "Failed to create Persistent Volume Claim")
 				return ctrl.Result{}, err
 			}
-			log.Error(err, "Created Persistent Volume Claim, requeueing")
+			log.Info("Created Persistent Volume Claim, requeueing")
 			return ctrl.Result{Requeue: true}, nil
 		}
+
+		pvcRef, err := ref.GetReference(r.Scheme, pvc)
+		if err != nil {
+			log.Error(err, "Unable to make reference to PVC", "PVC", pvc)
+			return ctrl.Result{}, err
+		}
+		je.Status.PersistentVolumeClaim = *pvcRef
 	}
 
-	opts := []client.ListOption{
-		client.InNamespace(je.Namespace),
-		client.MatchingLabels{"controller-uid": string(je.ObjectMeta.UID)},
-	}
-
-	jobList := new(batchv1.JobList)
-	if err := r.List(ctx, jobList, opts...); err != nil {
+	job, err := r.getJob(ctx, je)
+	if err != nil {
 		log.Error(err, "Failed to get Job")
 		return ctrl.Result{}, err
 	}
-	if len(jobList.Items) == 0 {
-		job, err := r.generateJobFromTemplate(jt, je)
-		if err != nil {
+
+	if job == nil {
+		if err := r.createJob(ctx, je, jt); err != nil {
 			log.Error(err, "Error generating Job")
 			return ctrl.Result{}, err
 		}
-		log.Info("Creating Job", "Job.Namespace", job.Namespace)
-		if err := r.Create(ctx, job); err != nil {
-			log.Error(err, "Failed to create new Job", "Job.Namespace", job.Namespace)
-			return ctrl.Result{}, err
-		}
+
+		log.Info("Created Job, requeueing")
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	job := jobList.Items[0]
 	if job.Status.CompletionTime != nil {
 		je.Status.Phase = v1alpha1.JobExecutionCompletedPhase
 	} else if job.Status.StartTime != nil {
@@ -132,7 +130,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		je.Status.Phase = v1alpha1.JobExecutionWaitingPhase
 	}
 
-	jobRef, err := ref.GetReference(r.Scheme, &job)
+	jobRef, err := ref.GetReference(r.Scheme, job)
 	if err != nil {
 		log.Error(err, "Unable to make reference to job", "job", job)
 		return ctrl.Result{}, err
@@ -155,7 +153,7 @@ func (r *JobExecutionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // Generates a Job from a JobTemplate, by applying JobExecution's fields.
-func (r *JobExecutionReconciler) generateJobFromTemplate(jobTemplate *dispatcherv1alpha1.JobTemplate, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
+func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*batchv1.Job, error) {
 	jobTpl, err := template.BuildJob(&jobTemplate.Spec.JobTemplateSpec, jobExecution)
 	if err != nil {
 		return nil, err
@@ -204,8 +202,6 @@ func (r *JobExecutionReconciler) generatePersitentVolumeClaimFromTemplate(jobExe
 	return pvc, nil
 }
 
-// TODO: One fn. to update the phase
-
 func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*dispatcherv1alpha1.JobTemplate, error) {
 	jt := new(dispatcherv1alpha1.JobTemplate)
 	if err := r.Get(ctx, types.NamespacedName{
@@ -241,6 +237,31 @@ func (r *JobExecutionReconciler) createPersistentVolumeClaim(ctx context.Context
 		return err
 	}
 	if err := r.Create(ctx, pvc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
+	opts := []client.ListOption{
+		client.InNamespace(jobExecution.Namespace),
+		client.MatchingLabels{"controller-uid": string(jobExecution.ObjectMeta.UID)},
+	}
+
+	jobList := new(batchv1.JobList)
+	if err := r.List(ctx, jobList, opts...); err != nil {
+		return nil, err
+	}
+
+	return &jobList.Items[0], nil
+}
+
+func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) error {
+	job, err := r.generateJobFromTemplate(jobExecution, jobTemplate)
+	if err != nil {
+		return err
+	}
+	if err := r.Create(ctx, job); err != nil {
 		return err
 	}
 	return nil
