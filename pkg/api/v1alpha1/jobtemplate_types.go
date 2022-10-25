@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,22 +33,7 @@ type JobTemplate struct {
 // JobTemplateSpec defines the desired state of JobTemplate
 type JobTemplateSpec struct {
 	// Specifies the Job that will be created when executing the Job.
-	batchv1.JobTemplateSpec `json:"jobTemplate"`
-
-	// Specifies the PersistentVolumeClaim that will be created when executing the Job.
-	// +optional
-	PersistentVolumeClaimTemplateSpec `json:"persistentVolumeClaimTemplate,omitempty"`
-}
-
-// PersistentVolumeClaimTemplateSpec defines the desired state of a PersistentVolumeClaimTemplate.
-type PersistentVolumeClaimTemplateSpec struct {
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec corev1.PersistentVolumeClaimSpec `json:"spec"`
-}
-
-func (j *JobTemplate) HasPersistentVolumeClaim() bool {
-	return j.Spec.PersistentVolumeClaimTemplateSpec.Spec.Resources.Size() > 0
+	batchv1.JobTemplateSpec `json:"template"`
 }
 
 // +kubebuilder:object:root=true

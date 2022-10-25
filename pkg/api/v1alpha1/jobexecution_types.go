@@ -50,9 +50,6 @@ type JobExecutionStatus struct {
 	// Job has a reference to the Job from this execution.
 	// +optional
 	Job corev1.ObjectReference `json:"job,omitempty"`
-
-	// PersistentVolumeClaim has a reference to the PVC from this execution.
-	PersistentVolumeClaim corev1.ObjectReference `json:"persistentVolumeClaim,omitempty"`
 }
 
 // JobExecutionPhase describes the current state of the Job.

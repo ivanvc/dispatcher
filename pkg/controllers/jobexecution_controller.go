@@ -21,7 +21,6 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,7 +45,6 @@ type JobExecutionReconciler struct {
 //+kubebuilder:rbac:groups=dispatcher.ivan.vc,resources=jobexecutions/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=dispatcher.ivan.vc,resources=jobexecutions/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -80,30 +78,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
 		return ctrl.Result{}, err
-	}
-
-	if jt.HasPersistentVolumeClaim() {
-		pvc, err := r.getPersistentVolumeClaim(ctx, je)
-		if err != nil {
-			log.Error(err, "Failed to get Persistent Volume Claim")
-			return ctrl.Result{}, err
-		}
-
-		if pvc == nil {
-			if err := r.createPersistentVolumeClaim(ctx, je, jt); err != nil {
-				log.Error(err, "Failed to create Persistent Volume Claim")
-				return ctrl.Result{}, err
-			}
-			log.Info("Created Persistent Volume Claim, requeueing")
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		pvcRef, err := ref.GetReference(r.Scheme, pvc)
-		if err != nil {
-			log.Error(err, "Unable to make reference to PVC", "PVC", pvc)
-			return ctrl.Result{}, err
-		}
-		je.Status.PersistentVolumeClaim = *pvcRef
 	}
 
 	job, err := r.getJob(ctx, je)
@@ -177,31 +151,6 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 	return job, nil
 }
 
-// Generates a PVC from a JobTemplate, by applying JobExecution's fields.
-func (r *JobExecutionReconciler) generatePersitentVolumeClaimFromTemplate(jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*corev1.PersistentVolumeClaim, error) {
-	pvcTpl, err := template.BuildPersistentVolumeClaim(&jobTemplate.Spec.PersistentVolumeClaimTemplateSpec, jobExecution)
-	if err != nil {
-		return nil, err
-	}
-	pvc := &corev1.PersistentVolumeClaim{
-		ObjectMeta: pvcTpl.ObjectMeta,
-		Spec:       pvcTpl.Spec,
-	}
-
-	pvc.ObjectMeta.Namespace = pvc.Namespace
-	if len(pvc.ObjectMeta.Name) == 0 && len(pvc.ObjectMeta.GenerateName) == 0 {
-		pvc.ObjectMeta.GenerateName = jobExecution.ObjectMeta.Name + "-"
-	}
-	if pvc.ObjectMeta.Labels == nil {
-		pvc.ObjectMeta.Labels = make(map[string]string)
-	}
-	pvc.ObjectMeta.Labels["controller-uid"] = string(jobExecution.ObjectMeta.UID)
-	pvc.ObjectMeta.Labels["job-execution-name"] = jobExecution.ObjectMeta.Name
-
-	ctrl.SetControllerReference(jobExecution, pvc, r.Scheme)
-	return pvc, nil
-}
-
 func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*dispatcherv1alpha1.JobTemplate, error) {
 	jt := new(dispatcherv1alpha1.JobTemplate)
 	if err := r.Get(ctx, types.NamespacedName{
@@ -215,31 +164,6 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 		return nil, err
 	}
 	return jt, nil
-}
-
-func (r *JobExecutionReconciler) getPersistentVolumeClaim(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*corev1.PersistentVolumeClaim, error) {
-	opts := []client.ListOption{
-		client.InNamespace(jobExecution.Namespace),
-		client.MatchingLabels{"controller-uid": string(jobExecution.ObjectMeta.UID)},
-	}
-
-	pvcList := new(corev1.PersistentVolumeClaimList)
-	if err := r.List(ctx, pvcList, opts...); err != nil {
-		return nil, err
-	}
-
-	return &pvcList.Items[0], nil
-}
-
-func (r *JobExecutionReconciler) createPersistentVolumeClaim(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) error {
-	pvc, err := r.generatePersitentVolumeClaimFromTemplate(jobExecution, jobTemplate)
-	if err != nil {
-		return err
-	}
-	if err := r.Create(ctx, pvc); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
