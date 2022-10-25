@@ -4,7 +4,6 @@
 resources:
 - bases/dispatcher.ivan.vc_jobtemplates.yaml
 - bases/dispatcher.ivan.vc_jobexecutions.yaml
-- bases/dispatcher.ivan.vc_persistentvolumeclaiminstances.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

@@ -1,6 +1,0 @@
-apiVersion: dispatcher.ivan.vc/v1alpha1
-kind: PersistentVolumeClaimInstance
-metadata:
-  name: persistentvolumeclaiminstance-sample
-spec:
-  # TODO(user): Add fields here

@@ -2,5 +2,4 @@
 resources:
 - dispatcher_v1alpha1_jobtemplate.yaml
 - dispatcher_v1alpha1_jobexecution.yaml
-- dispatcher_v1alpha1_persistentvolumeclaiminstance.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
