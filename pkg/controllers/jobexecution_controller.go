@@ -177,6 +177,10 @@ func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispa
 		return nil, err
 	}
 
+	if len(jobList.Items) == 0 {
+		return nil, nil
+	}
+
 	return &jobList.Items[0], nil
 }
 
