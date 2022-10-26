@@ -69,11 +69,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
-		log.Info("JobExecution is already completed", "JobExecution", je.ObjectMeta.Name)
-		return ctrl.Result{}, nil
-	}
-
 	jt, err := r.getJobTemplate(ctx, je)
 	if err != nil {
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
@@ -87,6 +82,15 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if job == nil {
+		if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
+			log.Info("JobExecution is already completed", "JobExecution", je.ObjectMeta.Name)
+			if err := r.Delete(ctx, je); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+
 		if err := r.createJob(ctx, je, jt); err != nil {
 			log.Error(err, "Error generating Job")
 			return ctrl.Result{}, err
