@@ -3,4 +3,25 @@ kind: JobTemplate
 metadata:
   name: jobtemplate-sample
 spec:
-  # TODO(user): Add fields here
+  template:
+    metadata:
+      generateName: job-sample-
+      labels:
+        test-label: test
+    spec:
+      template:
+        metadata:
+          labels:
+            pod-label: test
+        spec:
+          containers:
+          - name: pi
+            image: perl:5.34.0
+            command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+            env:
+            - name: PAYLOAD
+              value: "{{ .Payload }}"
+            - name: Date
+              value: "{{.Date}}"
+          restartPolicy: Never
+      backoffLimit: 4

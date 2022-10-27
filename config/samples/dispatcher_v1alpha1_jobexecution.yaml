@@ -3,4 +3,5 @@ kind: JobExecution
 metadata:
   name: jobexecution-sample
 spec:
-  # TODO(user): Add fields here
+  jobTemplateName: jobtemplate-sample
+  payload: test-payload
