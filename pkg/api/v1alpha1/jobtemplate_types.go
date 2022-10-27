@@ -33,7 +33,7 @@ type JobTemplate struct {
 // JobTemplateSpec defines the desired state of JobTemplate
 type JobTemplateSpec struct {
 	// Specifies the Job that will be created when executing the Job.
-	batchv1.JobTemplateSpec `json:"template"`
+	batchv1.JobTemplateSpec `json:"jobTemplate"`
 }
 
 // +kubebuilder:object:root=true

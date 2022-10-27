@@ -35,7 +35,7 @@ spec:
           spec:
             description: JobTemplateSpec defines the desired state of JobTemplate
             properties:
-              template:
+              jobTemplate:
                 description: Specifies the Job that will be created when executing
                   the Job.
                 properties:
@@ -8165,7 +8165,7 @@ spec:
                     type: object
                 type: object
             required:
-            - template
+            - jobTemplate
             type: object
         required:
         - spec

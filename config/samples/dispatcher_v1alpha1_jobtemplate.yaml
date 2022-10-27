@@ -3,7 +3,7 @@ kind: JobTemplate
 metadata:
   name: jobtemplate-sample
 spec:
-  template:
+  jobTemplate:
     metadata:
       generateName: job-sample-
       labels:
