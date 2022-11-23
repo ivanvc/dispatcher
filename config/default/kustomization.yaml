@@ -13,6 +13,7 @@ namePrefix: dispatcher-
 #  someName: someValue
 
 bases:
+- namespace.yaml
 - ../crd
 - ../rbac
 - ../manager
