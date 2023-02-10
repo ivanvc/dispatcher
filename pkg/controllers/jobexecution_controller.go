@@ -75,8 +75,17 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if job == nil {
-		if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase || je.Status.Phase == v1alpha1.JobExecutionFailedPhase {
+		if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
 			log.Info("JobExecution is already completed", "JobExecution", je.ObjectMeta.Name)
+			if err := r.Delete(ctx, je); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+
+		if je.Status.Phase == v1alpha1.JobExecutionFailedPhase {
+			log.Info("JobExecution failed to complete", "JobExecution", je.ObjectMeta.Name)
 			if err := r.Delete(ctx, je); err != nil {
 				return ctrl.Result{}, err
 			}
