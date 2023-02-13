@@ -84,6 +84,15 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, nil
 		}
 
+		if je.Status.Phase == v1alpha1.JobExecutionFailedPhase {
+			log.Info("JobExecution failed to complete", "JobExecution", je.ObjectMeta.Name)
+			if err := r.Delete(ctx, je); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+
 		if err := r.createJob(ctx, je, jt); err != nil {
 			log.Error(err, "Error generating Job")
 			return ctrl.Result{}, err
@@ -95,6 +104,8 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if job.Status.CompletionTime != nil {
 		je.Status.Phase = v1alpha1.JobExecutionCompletedPhase
+	} else if len(job.Status.Conditions) > 0 && hasFailedCondition(job) {
+		je.Status.Phase = v1alpha1.JobExecutionFailedPhase
 	} else if job.Status.StartTime != nil {
 		je.Status.Phase = v1alpha1.JobExecutionActivePhase
 	} else {
@@ -114,6 +125,16 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	return ctrl.Result{RequeueAfter: time.Second * 15}, nil
+}
+
+// Returns true if there is at least one condition from the job that has the failed status.
+func hasFailedCondition(job *batchv1.Job) bool {
+	for _, c := range job.Status.Conditions {
+		if c.Type == batchv1.JobFailed {
+			return true
+		}
+	}
+	return false
 }
 
 // SetupWithManager sets up the controller with the Manager.

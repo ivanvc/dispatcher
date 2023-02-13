@@ -64,6 +64,8 @@ const (
 	JobExecutionActivePhase JobExecutionPhase = "Active"
 	// Job has finished running.
 	JobExecutionCompletedPhase JobExecutionPhase = "Completed"
+	// Job has failed executing.
+	JobExecutionFailedPhase JobExecutionPhase = "Failed"
 )
 
 //+kubebuilder:object:root=true
