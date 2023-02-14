@@ -2,12 +2,14 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
@@ -39,7 +41,14 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Info("Creating JobExecution", "name", name, "ns", ns)
+	jt, err := e.getJobTemplate(ns, name, ctx)
+	if err != nil {
+		log.Error(err, "JobTemplate doesn't exist", "name", name, "namespace", ns)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	log.Info("Creating JobExecution", "name", name, "namespace", ns)
 	jobExecution := createJobExecution(name, ns, req.Body)
 
 	if err := e.Create(ctx, jobExecution); err != nil {
@@ -81,4 +90,10 @@ func createJobExecution(name, ns string, body io.ReadCloser) *v1alpha1.JobExecut
 			Payload:         b.String(),
 		},
 	}
+}
+
+func (e *executeJobHandler) getJobTemplate(namespace, name string, ctx context.Context) (*v1alpha1.JobTemplate, error) {
+	jt := new(v1alpha1.JobTemplate)
+	err := e.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, jt)
+	return jt, err
 }
