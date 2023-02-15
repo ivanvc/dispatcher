@@ -2,12 +2,14 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
@@ -39,8 +41,15 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Info("Creating JobExecution", "name", name, "ns", ns)
-	jobExecution := createJobExecution(name, ns, req.Body)
+	jt, err := e.getJobTemplate(ns, name, ctx)
+	if err != nil {
+		log.Error(err, "JobTemplate doesn't exist", "name", name, "namespace", ns)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	log.Info("Creating JobExecution", "name", name, "namespace", ns)
+	jobExecution := createJobExecution(ns, name, jt, req.Body)
 
 	if err := e.Create(ctx, jobExecution); err != nil {
 		log.Error(err, "Error creating JobExecution")
@@ -64,7 +73,7 @@ func getNameAndNamespace(path string) (name, namespace string, err error) {
 	return
 }
 
-func createJobExecution(name, ns string, body io.ReadCloser) *v1alpha1.JobExecution {
+func createJobExecution(namespace, name string, jobTemplate *v1alpha1.JobTemplate, body io.ReadCloser) *v1alpha1.JobExecution {
 	var b bytes.Buffer
 	if body != nil {
 		defer body.Close()
@@ -74,11 +83,18 @@ func createJobExecution(name, ns string, body io.ReadCloser) *v1alpha1.JobExecut
 	return &v1alpha1.JobExecution{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: name + "-",
-			Namespace:    ns,
+			Namespace:    namespace,
+			Labels:       jobTemplate.ObjectMeta.Labels,
 		},
 		Spec: v1alpha1.JobExecutionSpec{
 			JobTemplateName: name,
 			Payload:         b.String(),
 		},
 	}
+}
+
+func (e *executeJobHandler) getJobTemplate(namespace, name string, ctx context.Context) (*v1alpha1.JobTemplate, error) {
+	jt := new(v1alpha1.JobTemplate)
+	err := e.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, jt)
+	return jt, err
 }
