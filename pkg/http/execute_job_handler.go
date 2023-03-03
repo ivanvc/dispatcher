@@ -76,7 +76,6 @@ func getNameAndNamespace(path string) (name, namespace string, err error) {
 func createJobExecution(namespace, name string, jobTemplate *v1alpha1.JobTemplate, body io.ReadCloser) *v1alpha1.JobExecution {
 	var b bytes.Buffer
 	if body != nil {
-		defer body.Close()
 		io.Copy(&b, body)
 	}
 
