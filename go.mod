@@ -3,7 +3,6 @@ module github.com/ivanvc/dispatcher
 go 1.18
 
 require (
-	github.com/google/uuid v1.1.2
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
 	k8s.io/api v0.24.2
