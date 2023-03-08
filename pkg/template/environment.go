@@ -1,10 +1,6 @@
 package template
 
-import (
-	"strings"
-
-	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
-)
+import "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 
 type Environment struct {
 	Name    string
@@ -12,9 +8,8 @@ type Environment struct {
 }
 
 func newEnvironment(jobExecution *v1alpha1.JobExecution) *Environment {
-	escapedPayload := fmt.Sprintf("%q", jobExecution.Spec.Payload)
 	return &Environment{
 		Name:    jobExecution.ObjectMeta.Name,
-		Payload: escapedPayload[1 : len(escapedPayload)-1],
+		Payload: jobExecution.Spec.Payload,
 	}
 }
