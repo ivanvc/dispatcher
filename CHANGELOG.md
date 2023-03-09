@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 - Using JSON as the medium to generate the Kubernetes Job payload had unexpected
   issues. It caused expression errors with Sprig functions. So, now the
-  templating happens at the struct level, executing the template straigh in each
+  templating happens at the struct level, executing the template straight in each
   field value
 
 ## [0.2.0] - 2023-03-03
