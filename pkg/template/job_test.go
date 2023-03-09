@@ -51,10 +51,10 @@ func TestBuildJob(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if job.Spec.Template.Spec.Containers[0].Env[0].Value != "{&#34;hello&#34;:&#34;world&#34;}" {
+	if job.Spec.Template.Spec.Containers[0].Env[0].Value != `{"hello":"world"}` {
 		t.Error("Mismatch in PAYLOAD", job.Spec.Template.Spec.Containers[0].Env[0].Value)
 	}
-	if len(strings.Split(job.Spec.Template.Spec.Containers[0].Image, ":")[1]) != 37 {
+	if len(strings.Split(job.Spec.Template.Spec.Containers[0].Image, ":")[1]) != 36 {
 		t.Errorf("Got wrong replacement with Sprig function %q", job.Spec.Template.Spec.Containers[0].Image)
 	}
 }

@@ -1,9 +1,9 @@
 package template
 
 import (
-	"html/template"
 	"reflect"
 	"strings"
+	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
 )

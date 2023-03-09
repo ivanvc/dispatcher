@@ -96,7 +96,7 @@ func TestExecuteTemplateWithComplexSprigFunction(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if in.A != "{&#34;hello&#34;: &#34;world&#34;}" {
+	if in.A != `{"hello": "world"}` {
 		t.Error("Mismatch in generated output", in.A)
 	}
 }
