@@ -1,8 +1,6 @@
 package template
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestExecuteTemplateInStringField(t *testing.T) {
 	type input struct {
@@ -27,8 +25,10 @@ func TestExecuteTemplateInEmbeddedField(t *testing.T) {
 	type input struct {
 		E1 *Embedded
 		E2 Embedded
+		E3 *Embedded
 	}
-	tpl := newGenericTemplate(&input{&Embedded{"{{.Name | upper}}"}, Embedded{"{{.Payload}}"}}, &Environment{"Name", "Replaced"})
+	in := &input{E1: &Embedded{"{{.Name | upper}}"}, E2: Embedded{"{{.Payload}}"}}
+	tpl := newGenericTemplate(in, &Environment{"Name", "Replaced"})
 	if err := tpl.execute(); err != nil {
 		t.Error(err)
 		return
@@ -60,10 +60,11 @@ func TestExecuteTemplateInEmbbededSlice(t *testing.T) {
 	type input struct {
 		E1 *[]Embedded
 		E2 []Embedded
+		E3 *[]Embedded
 	}
 	in := &input{
-		&([]Embedded{Embedded{"{{.Payload}}"}}),
-		[]Embedded{Embedded{"{{.Name}}"}},
+		E1: &([]Embedded{Embedded{"{{.Payload}}"}}),
+		E2: []Embedded{Embedded{"{{.Name}}"}},
 	}
 	tpl := newGenericTemplate(in, &Environment{"2", "1"})
 	if err := tpl.execute(); err != nil {
