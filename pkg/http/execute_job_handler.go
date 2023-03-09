@@ -49,7 +49,7 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	log.Info("Creating JobExecution", "name", name, "namespace", ns)
-	jobExecution := createJobExecution(ns, name, jt, req.Body)
+	jobExecution := createJobExecution(jt, req.Body)
 
 	if err := e.Create(ctx, jobExecution); err != nil {
 		log.Error(err, "Error creating JobExecution")
@@ -61,7 +61,7 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func getNameAndNamespace(path string) (name, namespace string, err error) {
-	if n := strings.Split(strings.TrimPrefix(path, "/execute/"), "/"); len(n) == 0 {
+	if n := strings.Split(strings.TrimPrefix(path, "/execute/"), "/"); len(n[0]) == 0 || len(n) > 2 {
 		return "", "", errors.New("Empty job name")
 	} else if len(n) > 1 {
 		namespace = n[0]
@@ -73,7 +73,7 @@ func getNameAndNamespace(path string) (name, namespace string, err error) {
 	return
 }
 
-func createJobExecution(namespace, name string, jobTemplate *v1alpha1.JobTemplate, body io.ReadCloser) *v1alpha1.JobExecution {
+func createJobExecution(jobTemplate *v1alpha1.JobTemplate, body io.ReadCloser) *v1alpha1.JobExecution {
 	var b bytes.Buffer
 	if body != nil {
 		io.Copy(&b, body)
@@ -81,12 +81,12 @@ func createJobExecution(namespace, name string, jobTemplate *v1alpha1.JobTemplat
 
 	return &v1alpha1.JobExecution{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: name + "-",
-			Namespace:    namespace,
+			GenerateName: jobTemplate.ObjectMeta.Name + "-",
+			Namespace:    jobTemplate.ObjectMeta.Namespace,
 			Labels:       jobTemplate.ObjectMeta.Labels,
 		},
 		Spec: v1alpha1.JobExecutionSpec{
-			JobTemplateName: name,
+			JobTemplateName: jobTemplate.ObjectMeta.Name,
 			Payload:         b.String(),
 		},
 	}
