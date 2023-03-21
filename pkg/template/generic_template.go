@@ -45,12 +45,15 @@ func (t *genericTemplate) recursivelyExecuteTemplate(value reflect.Value) error 
 			if field.IsNil() {
 				continue
 			}
-			if field.Elem().Kind() == reflect.Slice || field.Elem().Kind() == reflect.Array {
+			switch field.Elem().Kind() {
+			case reflect.Slice, reflect.Array:
 				if err := t.walkSlice(field.Elem()); err != nil {
 					return err
 				}
-			} else if err := t.recursivelyExecuteTemplate(field); err != nil {
-				return err
+			case reflect.Struct:
+				if err := t.recursivelyExecuteTemplate(field); err != nil {
+					return err
+				}
 			}
 		case reflect.Struct:
 			if err := t.recursivelyExecuteTemplate(field); err != nil {

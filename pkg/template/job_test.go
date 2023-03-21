@@ -1,6 +1,8 @@
 package template
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
@@ -92,5 +94,22 @@ func TestBuildJobWithAnError(t *testing.T) {
 
 	if _, err := BuildJob(jt, &v1alpha1.JobExecution{}); err == nil {
 		t.Error("Expecting error, got nothing")
+	}
+}
+
+func TestExecuteTemplateWithAJobTemplate(t *testing.T) {
+	b, err := ioutil.ReadFile("testdata/job_template.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var jt v1alpha1.JobTemplate
+	if err := json.Unmarshal(b, &jt); err != nil {
+		t.Fatal(err)
+	}
+
+	tpl := newGenericTemplate(&jt, &Environment{"Name", `{"date":"2022-12-12"}`})
+	if err := tpl.execute(); err != nil {
+		t.Error(err)
 	}
 }

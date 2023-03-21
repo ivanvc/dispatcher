@@ -1,0 +1,155 @@
+{
+    "apiVersion": "dispatcher.ivan.vc/v1alpha1",
+    "kind": "JobTemplate",
+    "metadata": {
+        "annotations": {
+            "iam.amazonaws.com/role": "test-iam-role",
+            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"dispatcher.ivan.vc/v1alpha1\",\"kind\":\"JobTemplate\",\"metadata\":{\"annotations\":{\"iam.amazonaws.com/role\":\"test-template\"},\"labels\":{\"app.kubernetes.io/instance\":\"release-name\",\"app.kubernetes.io/name\":\"test-template\"},\"name\":\"test-template\",\"namespace\":\"default\"},\"spec\":{\"jobTemplate\":{\"metadata\":{\"annotations\":{\"iam.amazonaws.com/role\":\"test-iam-role\"},\"labels\":{\"app.kubernetes.io/instance\":\"release-name\",\"app.kubernetes.io/name\":\"test-template\"}},\"spec\":{\"backoffLimit\":0,\"template\":{\"metadata\":{\"annotations\":{\"iam.amazonaws.com/role\":\"test-iam-role\"},\"labels\":{\"app.kubernetes.io/instance\":\"release-name\",\"app.kubernetes.io/name\":\"test-template\"}},\"spec\":{\"affinity\":{\"podAntiAffinity\":{\"requiredDuringSchedulingIgnoredDuringExecution\":[{\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"In\",\"values\":[\"test-template\"]}]},\"topologyKey\":\"kubernetes.io/hostname\"}]}},\"containers\":[{\"env\":[{\"name\":\"OPTS\",\"value\":\"--payload={{ .Payload }}\"},{\"name\":\"PAYLOAD\",\"value\":\"{{ .Payload }}\"}],\"envFrom\":[{\"configMapRef\":{\"name\":\"test-template-cm\"}},{\"secretRef\":{\"name\":\"test-template-secret\"}}],\"image\":\"alpine\",\"name\":\"test-template\",\"resources\":{\"limits\":{\"memory\":\"1Gi\"},\"requests\":{\"memory\":\"1Gi\"}},\"volumeMounts\":[{\"mountPath\":\"/data\",\"name\":\"test-template\"}]}],\"initContainers\":[{\"command\":[\"/usr/bin/find\",\"/volume\",\"-delete\"],\"image\":\"alpine:3.12\",\"name\":\"init-container\",\"volumeMounts\":[{\"mountPath\":\"/volume\",\"name\":\"volume\"}]}],\"restartPolicy\":\"Never\",\"volumes\":[{\"ephemeral\":{\"volumeClaimTemplate\":{\"metadata\":{\"annotations\":{\"aws-ebs-tagger/tags\":\"project=katana,clean-policy=delete\"},\"labels\":{\"app.kubernetes.io/instance\":\"release-name\",\"app.kubernetes.io/name\":\"test-template\"}},\"spec\":{\"accessModes\":[\"ReadWriteOnce\"],\"resources\":{\"requests\":{\"storage\":\"4Gi\"}}}}},\"name\":\"volume\"}]}},\"ttlSecondsAfterFinished\":1800}}}}\n"
+        },
+        "creationTimestamp": "2023-03-16T21:23:55Z",
+        "generation": 1,
+        "labels": {
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/name": "test-template"
+        },
+        "name": "test-template",
+        "namespace": "default",
+        "resourceVersion": "380729515",
+        "selfLink": "/apis/dispatcher.ivan.vc/v1alpha1/namespaces/default/jobtemplates/test-template",
+        "uid": "23bebfef-7b10-4c51-a386-b5603132e07d"
+    },
+    "spec": {
+        "jobTemplate": {
+            "metadata": {
+                "annotations": {
+                    "iam.amazonaws.com/role": "test-iam-role"
+                },
+                "labels": {
+                    "app.kubernetes.io/instance": "release-name",
+                    "app.kubernetes.io/name": "test-template"
+                }
+            },
+            "spec": {
+                "backoffLimit": 0,
+                "template": {
+                    "metadata": {
+                        "annotations": {
+                            "iam.amazonaws.com/role": "test-iam-role"
+                        },
+                        "labels": {
+                            "app.kubernetes.io/instance": "release-name",
+                            "app.kubernetes.io/name": "test-template"
+                        }
+                    },
+                    "spec": {
+                        "affinity": {
+                            "podAntiAffinity": {
+                                "requiredDuringSchedulingIgnoredDuringExecution": [
+                                    {
+                                        "labelSelector": {
+                                            "matchExpressions": [
+                                                {
+                                                    "key": "app",
+                                                    "operator": "In",
+                                                    "values": [
+                                                        "test-template"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "topologyKey": "kubernetes.io/hostname"
+                                    }
+                                ]
+                            }
+                        },
+                        "containers": [
+                            {
+                                "env": [
+                                    {
+                                        "name": "PAYLOAD",
+                                        "value": "{{ .Payload }}"
+                                    }
+                                ],
+                                "envFrom": [
+                                    {
+                                        "configMapRef": {
+                                            "name": "test-template-cm"
+                                        }
+                                    },
+                                    {
+                                        "secretRef": {
+                                            "name": "test-template-secret"
+                                        }
+                                    }
+                                ],
+                                "image": "alpine",
+                                "name": "test-container",
+                                "resources": {
+                                    "limits": {
+                                        "memory": "1Gi"
+                                    },
+                                    "requests": {
+                                        "memory": "1Gi"
+                                    }
+                                },
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/data",
+                                        "name": "test-volume"
+                                    }
+                                ]
+                            }
+                        ],
+                        "initContainers": [
+                            {
+                                "command": [
+                                    "/usr/bin/find",
+                                    "/volume",
+                                    "-delete"
+                                ],
+                                "image": "alpine:3.12",
+                                "name": "init-container",
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/volume",
+                                        "name": "init-volume"
+                                    }
+                                ]
+                            }
+                        ],
+                        "restartPolicy": "Never",
+                        "volumes": [
+                            {
+                                "ephemeral": {
+                                    "volumeClaimTemplate": {
+                                        "metadata": {
+                                            "annotations": {
+                                                "aws-ebs-tagger/tags": "project=katana,clean-policy=delete"
+                                            },
+                                            "labels": {
+                                                "app.kubernetes.io/instance": "release-name",
+                                                "app.kubernetes.io/name": "test-template"
+                                            }
+                                        },
+                                        "spec": {
+                                            "accessModes": [
+                                                "ReadWriteOnce"
+                                            ],
+                                            "resources": {
+                                                "requests": {
+                                                    "storage": "4Gi"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "name": "test-template"
+                            }
+                        ]
+                    }
+                },
+                "ttlSecondsAfterFinished": 1800
+            }
+        }
+    }
+}
