@@ -83,6 +83,10 @@ func (t *genericTemplate) walkSlice(field reflect.Value) error {
 }
 
 func (t *genericTemplate) replaceValueWithRenderedTemplate(value reflect.Value) error {
+	if !value.CanSet() {
+		return nil
+	}
+
 	tpl, err := template.New(value.Type().Name()).Funcs(sprig.TxtFuncMap()).Parse(value.String())
 	if err != nil {
 		return err
