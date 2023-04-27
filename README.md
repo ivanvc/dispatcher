@@ -1,5 +1,5 @@
 # dispatcher
-// TODO(user): Add simple overview of use/purpose
+Dispatcher is a simple Kubernetes job enqueuer. It uses a job template definition stored in a JobTemplate CRD, and it then executing it is done through creating a JobExecution. Invoking a JobExecution can be done through its HTTP API. Therefore, executing jobs doesn't require clients to know the actual job template, but just the job's name.
 
 ## Description
 // TODO(user): An in-depth paragraph about your project and overview of use
