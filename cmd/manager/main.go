@@ -54,6 +54,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var webServerAddr string
+	var defaultNamespace string
 	flag.StringVar(&webServerAddr, "web-server-bind-address", ":8000",
 		"The address the web server endpoint binds to.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080",
@@ -63,6 +64,8 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&defaultNamespace, "default-namespace", "default",
+		"The default namespace to use when no namespace is specified when invoking a job via HTTP.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -113,7 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := mgr.Add(http.NewServer(webServerAddr, mgr.GetClient())); err != nil {
+	if err := mgr.Add(http.NewServer(webServerAddr, defaultNamespace, mgr.GetClient())); err != nil {
 		setupLog.Error(err, "Error running Web Server")
 		os.Exit(1)
 	}
