@@ -11,6 +11,7 @@ import (
 type Server struct {
 	*http.Server
 	client.Client
+	defaultNamespace string
 }
 
 // NeedLeaderElection implements the LeaderElectionRunnable interface, which
@@ -19,8 +20,8 @@ func (*Server) NeedLeaderElection() bool {
 	return false
 }
 
-func NewServer(address string, client client.Client) *Server {
-	return &Server{&http.Server{Addr: address}, client}
+func NewServer(address, defaultNamespace string, client client.Client) *Server {
+	return &Server{&http.Server{Addr: address}, client, defaultNamespace}
 }
 
 func (s *Server) Start(ctx context.Context) error {

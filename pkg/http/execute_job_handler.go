@@ -15,8 +15,6 @@ import (
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 )
 
-const defaultNamespace = "default"
-
 type executeJobHandler struct {
 	*Server
 }
@@ -34,7 +32,7 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	log := ctrllog.FromContext(ctx)
 
-	name, ns, err := getNameAndNamespace(req.URL.Path)
+	name, ns, err := getNameAndNamespace(req.URL.Path, e.defaultNamespace)
 	if err != nil {
 		log.Error(err, "Error getting name and namespace")
 		w.WriteHeader(http.StatusNotAcceptable)
@@ -60,7 +58,7 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func getNameAndNamespace(path string) (name, namespace string, err error) {
+func getNameAndNamespace(path, defaultNamespace string) (name, namespace string, err error) {
 	if n := strings.Split(strings.TrimPrefix(path, "/execute/"), "/"); len(n[0]) == 0 || len(n) > 2 {
 		return "", "", errors.New("Empty job name")
 	} else if len(n) > 1 {

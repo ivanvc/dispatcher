@@ -19,7 +19,7 @@ func TestGetNameAndNamespaceWithAnError(t *testing.T) {
 		"/execute/a/b/c",
 	}
 	for _, tc := range tt {
-		if _, _, err := getNameAndNamespace(tc); err == nil {
+		if _, _, err := getNameAndNamespace(tc, "default"); err == nil {
 			t.Errorf("Expecting error with input %q, got nothing", tc)
 			return
 		}
@@ -32,7 +32,7 @@ func TestGetNameAndNamespaceWithoutAnError(t *testing.T) {
 		[]string{"/execute/a/b", "a", "b"},
 	}
 	for _, tc := range tt {
-		name, ns, err := getNameAndNamespace(tc[0])
+		name, ns, err := getNameAndNamespace(tc[0], "default")
 		if err != nil {
 			t.Error(err)
 			return
