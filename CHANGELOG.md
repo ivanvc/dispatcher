@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Added
 - Allow to override the default namespace for jobs triggered via the HTTP API
   endpoint
+- Export Prometheus metrics from job requests and executions
 
 ## [0.3.2] - 2023-03-21
 ## Fixed
