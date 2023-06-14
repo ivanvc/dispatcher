@@ -28,11 +28,32 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	"github.com/ivanvc/dispatcher/pkg/template"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var (
+	jobExecutionsTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_executions_total",
+		Help: "The total number of dispatched JobExecutions.",
+	})
+	jobExecutionsFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_executions_failures_total",
+		Help: "The total number of failed JobExecutions.",
+	})
+	jobExecutionsSuccessTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_executions_success_total",
+		Help: "The total number of successful JobExecutions.",
+	})
+)
+
+func init() {
+	metrics.Registry.MustRegister(jobExecutionsTotal, jobExecutionsFailuresTotal)
+}
 
 // JobExecutionReconciler reconciles a JobExecution object
 type JobExecutionReconciler struct {
@@ -81,6 +102,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{}, err
 			}
 
+			jobExecutionsSuccessTotal.Inc()
 			return ctrl.Result{}, nil
 		}
 
@@ -90,6 +112,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{}, err
 			}
 
+			jobExecutionsFailuresTotal.Inc()
 			return ctrl.Result{}, nil
 		}
 
@@ -99,6 +122,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		log.Info("Created Job, requeueing")
+		jobExecutionsTotal.Inc()
 		return ctrl.Result{Requeue: true}, nil
 	}
 
