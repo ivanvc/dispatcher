@@ -52,7 +52,11 @@ var (
 )
 
 func init() {
-	metrics.Registry.MustRegister(jobExecutionsTotal, jobExecutionsFailuresTotal)
+	metrics.Registry.MustRegister(
+		jobExecutionsTotal,
+		jobExecutionsFailuresTotal,
+		jobExecutionsSuccessTotal,
+	)
 }
 
 // JobExecutionReconciler reconciles a JobExecution object
