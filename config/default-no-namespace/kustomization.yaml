@@ -9,20 +9,19 @@ namespace: dispatcher-system
 namePrefix: dispatcher-
 
 # Labels to add to all resources and selectors.
-#commonLabels:
-#  someName: someValue
+commonLabels:
+  app.kubernetes.io/name: dispatcher
 
 bases:
 - ../crd
 - ../rbac
 - ../manager
+- ../prometheus
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER'. 'WEBHOOK' components are required.
 #- ../certmanager
-# [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
-#- ../prometheus
 
 patchesStrategicMerge:
 # Protect the /metrics endpoint by putting it behind auth.

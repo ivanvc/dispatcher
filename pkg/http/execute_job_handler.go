@@ -11,9 +11,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var (
+	jobRequestsTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_requests_total",
+		Help: "The total number of requests to dispatch jobs",
+	})
+	jobRequestsFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_requests_failures_total",
+		Help: "The total number of failed dispatch job requests",
+	})
+	jobRequestsNotFoundFailuresTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_requests_not_found_failures_total",
+		Help: "The total number of not found dispatch job requests",
+	})
+	jobRequestsSuccessTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "job_requests_success_total",
+		Help: "The total number of success dispatch job requests",
+	})
+)
+
+func init() {
+	metrics.Registry.MustRegister(
+		jobRequestsTotal,
+		jobRequestsFailuresTotal,
+		jobRequestsNotFoundFailuresTotal,
+		jobRequestsSuccessTotal,
+	)
+}
 
 type executeJobHandler struct {
 	*Server
@@ -24,7 +54,9 @@ func (e *executeJobHandler) registerHandler() {
 }
 
 func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
+	jobRequestsTotal.Inc()
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {
+		jobRequestsFailuresTotal.Inc()
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -34,6 +66,7 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 
 	name, ns, err := getNameAndNamespace(req.URL.Path, e.defaultNamespace)
 	if err != nil {
+		jobRequestsFailuresTotal.Inc()
 		log.Error(err, "Error getting name and namespace")
 		w.WriteHeader(http.StatusNotAcceptable)
 		return
@@ -41,6 +74,8 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 
 	jt, err := e.getJobTemplate(ns, name, ctx)
 	if err != nil {
+		jobRequestsFailuresTotal.Inc()
+		jobRequestsNotFoundFailuresTotal.Inc()
 		log.Error(err, "JobTemplate doesn't exist", "name", name, "namespace", ns)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -50,11 +85,13 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 	jobExecution := createJobExecution(jt, req.Body)
 
 	if err := e.Create(ctx, jobExecution); err != nil {
+		jobRequestsFailuresTotal.Inc()
 		log.Error(err, "Error creating JobExecution")
 		w.WriteHeader(http.StatusNotAcceptable)
 		return
 	}
 
+	jobRequestsSuccessTotal.Inc()
 	w.WriteHeader(http.StatusCreated)
 }
 
