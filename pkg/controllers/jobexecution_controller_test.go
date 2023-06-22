@@ -178,7 +178,12 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionActivePhase))
 
 		By("Updating the JobExecution status when Job finished running")
-		job.Status.CompletionTime = &now
+		job.Status.Conditions = []batchv1.JobCondition{{
+			Type:   batchv1.JobComplete,
+			Status: corev1.ConditionTrue,
+		}}
+		k8sClient.Status().Update(ctx, job)
+
 		k8sClient.Status().Update(ctx, job)
 		res, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
@@ -331,6 +336,9 @@ var _ = Describe("JobExecution controller", func() {
 		job.Status.Conditions = []batchv1.JobCondition{{
 			Type:   batchv1.JobFailed,
 			Status: corev1.ConditionTrue,
+		}, {
+			Type:   batchv1.JobComplete,
+			Status: corev1.ConditionFalse,
 		}}
 		k8sClient.Status().Update(ctx, job)
 		_, _ = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{

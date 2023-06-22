@@ -159,11 +159,11 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if job.Status.CompletionTime != nil && je.Status.Phase != dispatcherv1alpha1.JobExecutionCompletedPhase {
+	if hasCompleteCondition(job) && je.Status.Phase != dispatcherv1alpha1.JobExecutionCompletedPhase {
 		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Completed", "Job %s completed running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionCompletedPhase
 		jobExecutionsSuccessTotal.Inc()
-	} else if len(job.Status.Conditions) > 0 && hasFailedCondition(job) {
+	} else if hasFailedCondition(job) {
 		r.Recorder.Eventf(je, corev1.EventTypeWarning, "Failed", "Job %s failed running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionFailedPhase
 	} else if job.Status.StartTime != nil {
@@ -185,6 +185,16 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func hasFailedCondition(job *batchv1.Job) bool {
 	for _, c := range job.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+// Returns true if the job has a completed condition.
+func hasCompleteCondition(job *batchv1.Job) bool {
+	for _, c := range job.Status.Conditions {
+		if c.Type == batchv1.JobComplete && c.Status == corev1.ConditionTrue {
 			return true
 		}
 	}
