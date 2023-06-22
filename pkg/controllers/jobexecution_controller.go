@@ -126,7 +126,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Reason:  "FetchJobTemplateError",
 			Message: "Failed fetching JobTemplate",
 		})
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionInvalidPhase
 		if err := r.Status().Update(ctx, je); err != nil {
 			log.Error(err, "Failed to update JobExecution status")
 			return ctrl.Result{}, err
@@ -177,7 +176,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Reason:  "JobCreated",
 			Message: "Job created, waiting to be executed",
 		})
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase
 		jobRef, err := ref.GetReference(r.Scheme, createdJob)
 		if err != nil {
 			log.Error(err, "Unable to make reference to job", "job", job)
@@ -211,7 +209,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Reason:  "JobCompleted",
 			Message: "Job completed running",
 		})
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionCompletedPhase
 		jobExecutionsSuccessTotal.Inc()
 	} else if isJobStatusConditionTrue(job, batchv1.JobFailed) {
 		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
@@ -227,7 +224,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Message: "Job completed running",
 		})
 		r.Recorder.Eventf(je, corev1.EventTypeWarning, "Failed", "Job %s failed running", job.Name)
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionFailedPhase
 		jobExecutionsFailuresTotal.Inc()
 	} else if job.Status.StartTime != nil {
 		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
@@ -243,7 +239,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Message: "Job is running",
 		})
 		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Started", "Job %s started running", job.Name)
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionActivePhase
 	}
 
 	if err := r.Status().Update(ctx, je); err != nil {
