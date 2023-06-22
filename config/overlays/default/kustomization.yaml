@@ -1,0 +1,7 @@
+# Adds namespace to all resources.
+namespace: dispatcher-system
+
+bases:
+- namespace.yaml
+- ../base
+
