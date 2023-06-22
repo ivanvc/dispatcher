@@ -30,7 +30,6 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	"github.com/ivanvc/dispatcher/pkg/template"
 	"github.com/prometheus/client_golang/prometheus"
@@ -100,18 +99,17 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if job == nil {
-		if je.Status.Phase == v1alpha1.JobExecutionCompletedPhase {
-			log.Info("JobExecution is already completed", "JobExecution", je.ObjectMeta.Name)
+		if je.Status.Phase == dispatcherv1alpha1.JobExecutionCompletedPhase {
+			log.Info("JobExecution is already completed", "JobExecution", je.Name)
 			if err := r.Delete(ctx, je); err != nil {
 				return ctrl.Result{}, err
 			}
 
-			jobExecutionsSuccessTotal.Inc()
 			return ctrl.Result{}, nil
 		}
 
-		if je.Status.Phase == v1alpha1.JobExecutionFailedPhase {
-			log.Info("JobExecution failed to complete", "JobExecution", je.ObjectMeta.Name)
+		if je.Status.Phase == dispatcherv1alpha1.JobExecutionFailedPhase {
+			log.Info("JobExecution failed to complete", "JobExecution", je.Name)
 			if err := r.Delete(ctx, je); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -120,8 +118,22 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, nil
 		}
 
-		if err := r.createJob(ctx, je, jt); err != nil {
+		createdJob, err := r.createJob(ctx, je, jt)
+		if err != nil {
 			log.Error(err, "Error generating Job")
+			return ctrl.Result{}, err
+		}
+
+		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase
+		jobRef, err := ref.GetReference(r.Scheme, createdJob)
+		if err != nil {
+			log.Error(err, "Unable to make reference to job", "job", job)
+			return ctrl.Result{}, err
+		}
+		je.Status.Job = *jobRef
+
+		if err := r.Status().Update(ctx, je); err != nil {
+			log.Error(err, "Failed to update JobExecution status")
 			return ctrl.Result{}, err
 		}
 
@@ -130,22 +142,16 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if job.Status.CompletionTime != nil {
-		je.Status.Phase = v1alpha1.JobExecutionCompletedPhase
+	if job.Status.CompletionTime != nil && je.Status.Phase != dispatcherv1alpha1.JobExecutionCompletedPhase {
+		je.Status.Phase = dispatcherv1alpha1.JobExecutionCompletedPhase
+		jobExecutionsSuccessTotal.Inc()
 	} else if len(job.Status.Conditions) > 0 && hasFailedCondition(job) {
-		je.Status.Phase = v1alpha1.JobExecutionFailedPhase
+		je.Status.Phase = dispatcherv1alpha1.JobExecutionFailedPhase
 	} else if job.Status.StartTime != nil {
-		je.Status.Phase = v1alpha1.JobExecutionActivePhase
+		je.Status.Phase = dispatcherv1alpha1.JobExecutionActivePhase
 	} else {
-		je.Status.Phase = v1alpha1.JobExecutionWaitingPhase
+		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase
 	}
-
-	jobRef, err := ref.GetReference(r.Scheme, job)
-	if err != nil {
-		log.Error(err, "Unable to make reference to job", "job", job)
-		return ctrl.Result{}, err
-	}
-	je.Status.Job = *jobRef
 
 	if err := r.Status().Update(ctx, je); err != nil {
 		log.Error(err, "Failed to update JobExecution status")
@@ -190,8 +196,8 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 	if job.ObjectMeta.Labels == nil {
 		job.ObjectMeta.Labels = make(map[string]string)
 	}
-	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.ObjectMeta.UID)
-	job.ObjectMeta.Labels["job-execution-name"] = jobExecution.ObjectMeta.Name
+	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.UID)
+	job.ObjectMeta.Labels["job-execution-name"] = jobExecution.Name
 
 	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
 	return job, nil
@@ -203,7 +209,7 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 		Name:      jobExecution.Spec.JobTemplateName,
 		Namespace: jobExecution.Namespace,
 	}, jt); err != nil {
-		jobExecution.Status.Phase = v1alpha1.JobExecutionInvalidPhase
+		jobExecution.Status.Phase = dispatcherv1alpha1.JobExecutionInvalidPhase
 		if err := r.Status().Update(ctx, jobExecution); err != nil {
 			return nil, err
 		}
@@ -215,7 +221,7 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
 	opts := []client.ListOption{
 		client.InNamespace(jobExecution.Namespace),
-		client.MatchingLabels{"controller-uid": string(jobExecution.ObjectMeta.UID)},
+		client.MatchingLabels{"controller-uid": string(jobExecution.UID)},
 	}
 
 	jobList := new(batchv1.JobList)
@@ -230,13 +236,13 @@ func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispa
 	return &jobList.Items[0], nil
 }
 
-func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) error {
+func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*batchv1.Job, error) {
 	job, err := r.generateJobFromTemplate(jobExecution, jobTemplate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := r.Create(ctx, job); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return job, nil
 }
