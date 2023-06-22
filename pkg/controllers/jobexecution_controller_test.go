@@ -162,6 +162,10 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
 
 		By("Updating the JobExecution status when Job is running")
+		job.Status.Conditions = []batchv1.JobCondition{{
+			Type:   batchv1.JobFailed,
+			Status: corev1.ConditionFalse,
+		}}
 		now := metav1.Now()
 		job.Status.StartTime = &now
 		k8sClient.Status().Update(ctx, job)
@@ -381,5 +385,13 @@ var _ = Describe("JobExecution controller", func() {
 			NamespacedName: typeNamespaceName,
 		})
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("skips reconciliation if the JobExecution doesn't exist", func() {
+		By("Running the reconciliation")
+		_, err := jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: typeNamespaceName,
+		})
+		Expect(err).To(Not(HaveOccurred()))
 	})
 })

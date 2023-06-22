@@ -21,6 +21,7 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -172,7 +173,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // Returns true if there is at least one condition from the job that has the failed status.
 func hasFailedCondition(job *batchv1.Job) bool {
 	for _, c := range job.Status.Conditions {
-		if c.Type == batchv1.JobFailed {
+		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
 			return true
 		}
 	}
