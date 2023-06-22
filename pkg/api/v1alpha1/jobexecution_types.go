@@ -47,10 +47,29 @@ type JobExecutionStatus struct {
 	// - "Completed": The Job finished running.
 	Phase JobExecutionPhase `json:"phase"`
 
+	// Represents the observations of a JobExecution's state. The state of the JobExecution is tied to the Job it manages.
+	// Conditions.type are: "Waiting", "Running", "Succeeded".
+	// Conditions.status are one of True, False, Unknown.
+	// Conditions.reason defines a camelCase expected values and meanings for this field.
+	// Conditions.Message is a human readable message indicating details about the transition.
+
+	// Conditions store the status conditions of a JobExecution.
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
 	// Job has a reference to the Job from this execution.
 	// +optional
 	Job corev1.ObjectReference `json:"job,omitempty"`
 }
+
+// JobExecutionConditionType describes the observed state of a JobExecution and its Job.
+type JobExecutionConditionType string
+
+const (
+	JobExecutionWaiting   JobExecutionConditionType = "Waiting"
+	JobExecutionRunning   JobExecutionConditionType = "Running"
+	JobExecutionSucceeded JobExecutionConditionType = "Succeeded"
+)
 
 // JobExecutionPhase describes the current state of the Job.
 type JobExecutionPhase string
