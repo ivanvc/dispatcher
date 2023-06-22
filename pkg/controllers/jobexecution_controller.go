@@ -81,7 +81,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	je := new(dispatcherv1alpha1.JobExecution)
 	if err := r.Get(ctx, req.NamespacedName, je); err != nil {
 		if errors.IsNotFound(err) {
-			log.Info("JobExecution resource not found")
+			log.Info("JobExecution resource not found, ignoring as resouce must be deleted")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -92,8 +92,14 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	jt, err := r.getJobTemplate(ctx, je)
 	if err != nil {
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
-		r.Recorder.Eventf(je, "Warning", "JobTemplateNotFound", "JobTemplate %s not found in namespace %s",
-			je.Spec.JobTemplateName, je.Namespace)
+		r.Recorder.Eventf(
+			je,
+			corev1.EventTypeWarning,
+			"JobTemplateNotFound",
+			"JobTemplate %s not found in namespace %s",
+			je.Spec.JobTemplateName,
+			je.Namespace,
+		)
 		return ctrl.Result{}, err
 	}
 
@@ -142,21 +148,21 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Eventf(je, "Normal", "Created", "Job %s created", createdJob.Name)
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Created", "Job %s created", createdJob.Name)
 		log.Info("Created Job, requeueing")
 		jobExecutionsTotal.Inc()
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if job.Status.CompletionTime != nil && je.Status.Phase != dispatcherv1alpha1.JobExecutionCompletedPhase {
-		r.Recorder.Eventf(je, "Normal", "Completed", "Job %s completed running", job.Name)
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Completed", "Job %s completed running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionCompletedPhase
 		jobExecutionsSuccessTotal.Inc()
 	} else if len(job.Status.Conditions) > 0 && hasFailedCondition(job) {
-		r.Recorder.Eventf(je, "Warning", "Failed", "Job %s failed running", job.Name)
+		r.Recorder.Eventf(je, corev1.EventTypeWarning, "Failed", "Job %s failed running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionFailedPhase
 	} else if job.Status.StartTime != nil {
-		r.Recorder.Eventf(je, "Normal", "Started", "Job %s started running", job.Name)
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Started", "Job %s started running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionActivePhase
 	} else {
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase
