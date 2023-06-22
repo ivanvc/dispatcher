@@ -91,6 +91,11 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	jt, err := r.getJobTemplate(ctx, je)
 	if err != nil {
+		je.Status.Phase = dispatcherv1alpha1.JobExecutionInvalidPhase
+		if err := r.Status().Update(ctx, je); err != nil {
+			return ctrl.Result{}, err
+		}
+
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
 		r.Recorder.Eventf(
 			je,
@@ -224,10 +229,6 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 		Name:      jobExecution.Spec.JobTemplateName,
 		Namespace: jobExecution.Namespace,
 	}, jt); err != nil {
-		jobExecution.Status.Phase = dispatcherv1alpha1.JobExecutionInvalidPhase
-		if err := r.Status().Update(ctx, jobExecution); err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
 	return jt, nil
