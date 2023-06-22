@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -20,10 +21,11 @@ var _ = Describe("JobExecution controller", func() {
 	iteration := 0
 
 	var (
-		namespace         *corev1.Namespace
-		typeNamespaceName types.NamespacedName
-		jobTemplate       *dispatcherv1alpha1.JobTemplate
-		namespaceName     string
+		namespace              *corev1.Namespace
+		typeNamespaceName      types.NamespacedName
+		jobTemplate            *dispatcherv1alpha1.JobTemplate
+		namespaceName          string
+		jobExecutionReconciler *JobExecutionReconciler
 	)
 
 	const (
@@ -84,6 +86,12 @@ var _ = Describe("JobExecution controller", func() {
 			},
 		}
 
+		jobExecutionReconciler = &JobExecutionReconciler{
+			Client:   k8sClient,
+			Scheme:   k8sClient.Scheme(),
+			Recorder: record.NewFakeRecorder(1024),
+		}
+
 		err := k8sClient.Create(ctx, namespace)
 		Expect(err).To(Not(HaveOccurred()))
 
@@ -127,10 +135,6 @@ var _ = Describe("JobExecution controller", func() {
 		}, time.Minute, time.Second).Should(Succeed())
 
 		By("Running the reconciliation")
-		jobExecutionReconciler := &JobExecutionReconciler{
-			Client: k8sClient,
-			Scheme: k8sClient.Scheme(),
-		}
 		res, err := jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -158,6 +162,10 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
 
 		By("Updating the JobExecution status when Job is running")
+		job.Status.Conditions = []batchv1.JobCondition{{
+			Type:   batchv1.JobFailed,
+			Status: corev1.ConditionFalse,
+		}}
 		now := metav1.Now()
 		job.Status.StartTime = &now
 		k8sClient.Status().Update(ctx, job)
@@ -212,10 +220,6 @@ var _ = Describe("JobExecution controller", func() {
 		k8sClient.Create(ctx, jobExecution)
 
 		By("Running the reconciliation")
-		jobExecutionReconciler := &JobExecutionReconciler{
-			Client: k8sClient,
-			Scheme: k8sClient.Scheme(),
-		}
 		_, _ = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -252,10 +256,6 @@ var _ = Describe("JobExecution controller", func() {
 		k8sClient.Create(ctx, jobExecution)
 
 		By("Running the reconciliation")
-		jobExecutionReconciler := &JobExecutionReconciler{
-			Client: k8sClient,
-			Scheme: k8sClient.Scheme(),
-		}
 		_, _ = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -303,10 +303,6 @@ var _ = Describe("JobExecution controller", func() {
 		}, time.Minute, time.Second).Should(Succeed())
 
 		By("Running the reconciliation")
-		jobExecutionReconciler := &JobExecutionReconciler{
-			Client: k8sClient,
-			Scheme: k8sClient.Scheme(),
-		}
 		res, err := jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -385,13 +381,17 @@ var _ = Describe("JobExecution controller", func() {
 		}, time.Minute, time.Second).Should(Succeed())
 
 		By("Running the reconciliation")
-		jobExecutionReconciler := &JobExecutionReconciler{
-			Client: k8sClient,
-			Scheme: k8sClient.Scheme(),
-		}
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("skips reconciliation if the JobExecution doesn't exist", func() {
+		By("Running the reconciliation")
+		_, err := jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: typeNamespaceName,
+		})
+		Expect(err).To(Not(HaveOccurred()))
 	})
 })

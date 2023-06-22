@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export Prometheus metrics from job requests and executions
 - Set the Kubernetes label "app.kubernetes.io/name" and
   "app.kubernetes.io/instance" to all Kubernetes resources
+- Record JobExecution events in the controller manager
 
 ## Changed
 - Update the directory structure of the Kustomization configuration files. Now
