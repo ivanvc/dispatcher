@@ -4,4 +4,3 @@ namespace: dispatcher-system
 bases:
 - namespace.yaml
 - ../base
-
