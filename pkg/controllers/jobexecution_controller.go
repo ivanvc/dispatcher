@@ -218,6 +218,7 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 	return job, nil
 }
 
+// Gets the JobTemplate from a jobExecution.
 func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*dispatcherv1alpha1.JobTemplate, error) {
 	jt := new(dispatcherv1alpha1.JobTemplate)
 	if err := r.Get(ctx, types.NamespacedName{
@@ -229,6 +230,7 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 	return jt, nil
 }
 
+// Gets the Job from a jobExecution
 func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
 	if len(jobExecution.Status.Job.Name) == 0 {
 		return nil, nil
@@ -246,6 +248,7 @@ func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispa
 	return job, nil
 }
 
+// Creates a Job from a jobExecution and its jobTemplate.
 func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*batchv1.Job, error) {
 	job, err := r.generateJobFromTemplate(jobExecution, jobTemplate)
 	if err != nil {
