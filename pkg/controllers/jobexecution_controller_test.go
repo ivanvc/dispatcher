@@ -151,10 +151,6 @@ var _ = Describe("JobExecution controller", func() {
 			return k8sClient.Get(ctx, typeNamespaceName, job)
 		}, time.Minute, time.Second).Should(Succeed())
 
-		By("Checking the labels from the generated Job")
-		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("controller-uid", string(jobExecution.UID)))
-		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("job-execution-name", jobExecutionName))
-
 		By("Checking the reference to the Job")
 		Expect(jobExecution.Status.Job.Kind).To(Equal("Job"))
 		Expect(jobExecution.Status.Job.Name).To(Equal(job.Name))
@@ -189,8 +185,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionCompletedPhase))
 
 		By("Deleting the JobExecution once the Job is removed")
-		job.Labels["controller-uid"] = ""
-		k8sClient.Update(ctx, job)
+		jobExecution.Status.Job.Name = ""
+		k8sClient.Status().Update(ctx, jobExecution)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -340,8 +336,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionFailedPhase))
 
 		By("Deleting the JobExecution once the Job is removed")
-		job.Labels["controller-uid"] = ""
-		k8sClient.Update(ctx, job)
+		jobExecution.Status.Job.Name = "other-name"
+		k8sClient.Status().Update(ctx, jobExecution)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
