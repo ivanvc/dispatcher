@@ -11,6 +11,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -143,7 +144,7 @@ var _ = Describe("JobExecution controller", func() {
 
 		By("Checking if the status of the JobExecution is waiting")
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionWaitingPhase))
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, waitingCondition)).To(BeTrue())
 
 		job := &batchv1.Job{}
 		By("Checking if the Job from the JobExecution was created")
@@ -175,7 +176,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(res.RequeueAfter).To(Not(BeNil()))
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionActivePhase))
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, waitingCondition)).To(BeTrue())
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
 
 		By("Updating the JobExecution status when Job finished running")
 		job.Status.Conditions = []batchv1.JobCondition{{
@@ -191,7 +193,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(res.RequeueAfter).To(Not(BeNil()))
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionCompletedPhase))
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
 		jobExecution.Status.Job.Name = ""
@@ -330,7 +333,7 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(res.RequeueAfter).To(Not(BeNil()))
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionActivePhase))
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
 
 		By("Updating the JobExecution status when Job finished running")
 		job.Status.Conditions = []batchv1.JobCondition{{
@@ -345,7 +348,8 @@ var _ = Describe("JobExecution controller", func() {
 			NamespacedName: typeNamespaceName,
 		})
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionFailedPhase))
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
 		jobExecution.Status.Job.Name = "other-name"
