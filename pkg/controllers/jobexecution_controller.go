@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,7 +62,8 @@ func init() {
 // JobExecutionReconciler reconciles a JobExecution object
 type JobExecutionReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=dispatcher.ivan.vc,resources=jobexecutions,verbs=get;list;watch;create;update;patch;delete
@@ -89,6 +91,8 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	jt, err := r.getJobTemplate(ctx, je)
 	if err != nil {
 		log.Error(err, "Failed to get JobTemplate, requeueing.")
+		r.Recorder.Eventf(je, "Warning", "JobTemplateNotFound", "JobTemplate %s not found in namespace %s",
+			je.Spec.JobTemplateName, je.Namespace)
 		return ctrl.Result{}, err
 	}
 
@@ -137,17 +141,21 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 
+		r.Recorder.Eventf(je, "Normal", "Created", "Job %s created", createdJob.Name)
 		log.Info("Created Job, requeueing")
 		jobExecutionsTotal.Inc()
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if job.Status.CompletionTime != nil && je.Status.Phase != dispatcherv1alpha1.JobExecutionCompletedPhase {
+		r.Recorder.Eventf(je, "Normal", "Completed", "Job %s completed running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionCompletedPhase
 		jobExecutionsSuccessTotal.Inc()
 	} else if len(job.Status.Conditions) > 0 && hasFailedCondition(job) {
+		r.Recorder.Eventf(je, "Warning", "Failed", "Job %s failed running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionFailedPhase
 	} else if job.Status.StartTime != nil {
+		r.Recorder.Eventf(je, "Normal", "Started", "Job %s started running", job.Name)
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionActivePhase
 	} else {
 		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase

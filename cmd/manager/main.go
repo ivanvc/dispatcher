@@ -99,8 +99,9 @@ func main() {
 	}
 
 	if err = (&controllers.JobExecutionReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("jobexecution-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "JobExecution")
 		os.Exit(1)

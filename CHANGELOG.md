@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export Prometheus metrics from job requests and executions
 - Set the Kubernetes label "app.kubernetes.io/name" to all of the dispatcher
   resources
+- Record JobExecution events in the controller manager
 
 ## [0.3.2] - 2023-03-21
 ## Fixed
