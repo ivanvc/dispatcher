@@ -181,7 +181,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{RequeueAfter: time.Second * 15}, nil
 }
 
-// Returns true if there is at least one condition from the job that has the failed status.
+// Returns true if the job has a failed condition.
 func hasFailedCondition(job *batchv1.Job) bool {
 	for _, c := range job.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
@@ -213,6 +213,12 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 	if len(job.ObjectMeta.Name) == 0 && len(job.ObjectMeta.GenerateName) == 0 {
 		job.ObjectMeta.GenerateName = jobExecution.ObjectMeta.Name + "-"
 	}
+
+	if job.ObjectMeta.Labels == nil {
+		job.ObjectMeta.Labels = make(map[string]string)
+	}
+	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.GetUID())
+	job.ObjectMeta.Labels["job-execution-name"] = jobExecution.Name
 
 	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
 	return job, nil

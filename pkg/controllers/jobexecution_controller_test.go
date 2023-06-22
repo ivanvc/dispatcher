@@ -157,6 +157,10 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(jobExecution.Status.Job.Namespace).To(Equal(job.Namespace))
 		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
 
+		By("Checking the labels from the generated Job")
+		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("controller-uid", string(jobExecution.UID)))
+		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("job-execution-name", jobExecutionName))
+
 		By("Updating the JobExecution status when Job is running")
 		job.Status.Conditions = []batchv1.JobCondition{{
 			Type:   batchv1.JobFailed,
