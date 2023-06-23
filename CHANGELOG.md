@@ -10,8 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow to override the default namespace for jobs triggered via the HTTP API
   endpoint
 - Export Prometheus metrics from job requests and executions
-- Set the Kubernetes label "app.kubernetes.io/name" to all of the dispatcher
-  resources
+- Set the Kubernetes label "app.kubernetes.io/name" and
+  "app.kubernetes.io/instance" to all Kubernetes resources
+
+## Changed
+- Update the directory structure of the Kustomization configuration files. Now
+  the overlays are located in the `overlays/` directory. There are three
+  different overlays:
+  - base: doesn't create a namespace, which plays nice with Helm
+  - default: uses base, and creates the namespace on top of it
+  - with-prometheus-monitoring: uses base, and enables prometheus monitoring
 
 ## [0.3.2] - 2023-03-21
 ## Fixed
