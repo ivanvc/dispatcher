@@ -406,4 +406,45 @@ var _ = Describe("JobExecution controller", func() {
 		})
 		Expect(err).To(Not(HaveOccurred()))
 	})
+
+	It("fails to create a Job if the JobTemplate is invalid", func() {
+		By("Updating the JobTemplate")
+		jobTemplate.Spec.JobTemplateSpec.ObjectMeta.Name = `{{fail "expected error"}}`
+		k8sClient.Update(ctx, jobTemplate)
+
+		By("Creating the JobExecution")
+		jobExecution := &dispatcherv1alpha1.JobExecution{
+			Spec: dispatcherv1alpha1.JobExecutionSpec{
+				JobTemplateName: jobTemplateName,
+			},
+		}
+		err := k8sClient.Get(ctx, typeNamespaceName, jobExecution)
+		if err != nil && errors.IsNotFound(err) {
+			jobExecution := &dispatcherv1alpha1.JobExecution{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      jobExecutionName,
+					Namespace: namespace.Name,
+				},
+				Spec: dispatcherv1alpha1.JobExecutionSpec{
+					JobTemplateName: jobTemplateName,
+					Payload:         "test",
+				},
+			}
+
+			err = k8sClient.Create(ctx, jobExecution)
+			Expect(err).To(Not(HaveOccurred()))
+		}
+
+		By("Checking if the custom resource was created")
+		Eventually(func() error {
+			found := &dispatcherv1alpha1.JobExecution{}
+			return k8sClient.Get(ctx, typeNamespaceName, found)
+		}, time.Minute, time.Second).Should(Succeed())
+
+		By("Running the reconciliation")
+		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: typeNamespaceName,
+		})
+		Expect(err).To(HaveOccurred())
+	})
 })
