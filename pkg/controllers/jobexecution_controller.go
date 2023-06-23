@@ -157,6 +157,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if meta.IsStatusConditionFalse(je.Status.Conditions, runningCondition) {
 			log.Info("JobExecution is already completed", "JobExecution", je.Name)
 			if err := r.Delete(ctx, je); err != nil {
+				log.Error(err, "Failed to delete JobExecution")
 				return ctrl.Result{}, err
 			}
 
