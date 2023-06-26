@@ -11,6 +11,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -143,7 +144,7 @@ var _ = Describe("JobExecution controller", func() {
 
 		By("Checking if the status of the JobExecution is waiting")
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionWaitingPhase))
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, waitingCondition)).To(BeTrue())
 
 		job := &batchv1.Job{}
 		By("Checking if the Job from the JobExecution was created")
@@ -151,17 +152,21 @@ var _ = Describe("JobExecution controller", func() {
 			return k8sClient.Get(ctx, typeNamespaceName, job)
 		}, time.Minute, time.Second).Should(Succeed())
 
-		By("Checking the labels from the generated Job")
-		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("controller-uid", string(jobExecution.UID)))
-		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("job-execution-name", jobExecutionName))
-
 		By("Checking the reference to the Job")
 		Expect(jobExecution.Status.Job.Kind).To(Equal("Job"))
 		Expect(jobExecution.Status.Job.Name).To(Equal(job.Name))
 		Expect(jobExecution.Status.Job.Namespace).To(Equal(job.Namespace))
 		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
 
+		By("Checking the labels from the generated Job")
+		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("controller-uid", string(jobExecution.UID)))
+		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("job-execution-name", jobExecutionName))
+
 		By("Updating the JobExecution status when Job is running")
+		job.Status.Conditions = []batchv1.JobCondition{{
+			Type:   batchv1.JobFailed,
+			Status: corev1.ConditionFalse,
+		}}
 		now := metav1.Now()
 		job.Status.StartTime = &now
 		k8sClient.Status().Update(ctx, job)
@@ -171,10 +176,16 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(res.RequeueAfter).To(Not(BeNil()))
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionActivePhase))
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, waitingCondition)).To(BeTrue())
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
 
 		By("Updating the JobExecution status when Job finished running")
-		job.Status.CompletionTime = &now
+		job.Status.Conditions = []batchv1.JobCondition{{
+			Type:   batchv1.JobComplete,
+			Status: corev1.ConditionTrue,
+		}}
+		k8sClient.Status().Update(ctx, job)
+
 		k8sClient.Status().Update(ctx, job)
 		res, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
@@ -182,11 +193,12 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(res.RequeueAfter).To(Not(BeNil()))
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionCompletedPhase))
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
-		job.Labels["controller-uid"] = ""
-		k8sClient.Update(ctx, job)
+		jobExecution.Status.Job.Name = ""
+		k8sClient.Status().Update(ctx, jobExecution)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -321,23 +333,27 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(res.RequeueAfter).To(Not(BeNil()))
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionActivePhase))
+		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
 
 		By("Updating the JobExecution status when Job finished running")
 		job.Status.Conditions = []batchv1.JobCondition{{
 			Type:   batchv1.JobFailed,
 			Status: corev1.ConditionTrue,
+		}, {
+			Type:   batchv1.JobComplete,
+			Status: corev1.ConditionFalse,
 		}}
 		k8sClient.Status().Update(ctx, job)
 		_, _ = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
-		Expect(jobExecution.Status.Phase).To(Equal(dispatcherv1alpha1.JobExecutionFailedPhase))
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
+		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
-		job.Labels["controller-uid"] = ""
-		k8sClient.Update(ctx, job)
+		jobExecution.Status.Job.Name = "other-name"
+		k8sClient.Status().Update(ctx, jobExecution)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -362,6 +378,55 @@ var _ = Describe("JobExecution controller", func() {
 				},
 				Spec: dispatcherv1alpha1.JobExecutionSpec{
 					JobTemplateName: "not-found",
+					Payload:         "test",
+				},
+			}
+
+			err = k8sClient.Create(ctx, jobExecution)
+			Expect(err).To(Not(HaveOccurred()))
+		}
+
+		By("Checking if the custom resource was created")
+		Eventually(func() error {
+			found := &dispatcherv1alpha1.JobExecution{}
+			return k8sClient.Get(ctx, typeNamespaceName, found)
+		}, time.Minute, time.Second).Should(Succeed())
+
+		By("Running the reconciliation")
+		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: typeNamespaceName,
+		})
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("skips reconciliation if the JobExecution doesn't exist", func() {
+		By("Running the reconciliation")
+		_, err := jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: typeNamespaceName,
+		})
+		Expect(err).To(Not(HaveOccurred()))
+	})
+
+	It("fails to create a Job if the JobTemplate is invalid", func() {
+		By("Updating the JobTemplate")
+		jobTemplate.Spec.JobTemplateSpec.ObjectMeta.Name = `{{fail "expected error"}}`
+		k8sClient.Update(ctx, jobTemplate)
+
+		By("Creating the JobExecution")
+		jobExecution := &dispatcherv1alpha1.JobExecution{
+			Spec: dispatcherv1alpha1.JobExecutionSpec{
+				JobTemplateName: jobTemplateName,
+			},
+		}
+		err := k8sClient.Get(ctx, typeNamespaceName, jobExecution)
+		if err != nil && errors.IsNotFound(err) {
+			jobExecution := &dispatcherv1alpha1.JobExecution{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      jobExecutionName,
+					Namespace: namespace.Name,
+				},
+				Spec: dispatcherv1alpha1.JobExecutionSpec{
+					JobTemplateName: jobTemplateName,
 					Payload:         "test",
 				},
 			}

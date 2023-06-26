@@ -21,7 +21,10 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -34,6 +37,12 @@ import (
 	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
 	"github.com/ivanvc/dispatcher/pkg/template"
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	waitingCondition   = string(dispatcherv1alpha1.JobExecutionWaiting)
+	runningCondition   = string(dispatcherv1alpha1.JobExecutionRunning)
+	succeededCondition = string(dispatcherv1alpha1.JobExecutionSucceeded)
 )
 
 var (
@@ -77,10 +86,11 @@ type JobExecutionReconciler struct {
 func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrllog.FromContext(ctx)
 
+	// Fetch the JobExecution
 	je := new(dispatcherv1alpha1.JobExecution)
 	if err := r.Get(ctx, req.NamespacedName, je); err != nil {
 		if errors.IsNotFound(err) {
-			log.Info("JobExecution resource not found")
+			log.Info("JobExecution resource not found, ignoring as resouce must be deleted")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -88,47 +98,85 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	// If conditions are not set, initialize the slice
+	if je.Status.Conditions == nil || len(je.Status.Conditions) == 0 {
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    waitingCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  "Reconciling",
+			Message: "Starting reconciliation",
+		})
+		if err := r.Status().Update(ctx, je); err != nil {
+			log.Error(err, "Failed to update JobExecution status")
+			return ctrl.Result{}, err
+		}
+
+		// Re-fetch JobExecution to avoid having to re-run reocnciliation loop
+		if err := r.Get(ctx, req.NamespacedName, je); err != nil {
+			log.Error(err, "Failed to re-fetch JobExecution")
+			return ctrl.Result{}, err
+		}
+	}
+
 	jt, err := r.getJobTemplate(ctx, je)
 	if err != nil {
-		log.Error(err, "Failed to get JobTemplate, requeueing.")
-		r.Recorder.Eventf(je, "Warning", "JobTemplateNotFound", "JobTemplate %s not found in namespace %s",
-			je.Spec.JobTemplateName, je.Namespace)
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    waitingCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  "FetchJobTemplateError",
+			Message: "Failed fetching JobTemplate",
+		})
+		if err := r.Status().Update(ctx, je); err != nil {
+			log.Error(err, "Failed to update JobExecution status")
+			return ctrl.Result{}, err
+		}
+
+		log.Error(err, "Failed to get JobTemplate, requeueing")
+		r.Recorder.Eventf(
+			je,
+			corev1.EventTypeWarning,
+			"JobTemplateNotFound",
+			"Failed fetching JobTemplate %s: %s",
+			je.Spec.JobTemplateName,
+			err.Error(),
+		)
 		return ctrl.Result{}, err
 	}
 
+	// Fetch owned Job
 	job, err := r.getJob(ctx, je)
 	if err != nil {
 		log.Error(err, "Failed to get Job")
 		return ctrl.Result{}, err
 	}
 
+	// If job is not found
 	if job == nil {
-		if je.Status.Phase == dispatcherv1alpha1.JobExecutionCompletedPhase {
+		// If job is not running anymore, don't care about succeeded condition, as
+		// it may or not finished successfully.
+		if meta.IsStatusConditionFalse(je.Status.Conditions, runningCondition) {
 			log.Info("JobExecution is already completed", "JobExecution", je.Name)
 			if err := r.Delete(ctx, je); err != nil {
+				log.Error(err, "Failed to delete JobExecution")
 				return ctrl.Result{}, err
 			}
 
 			return ctrl.Result{}, nil
 		}
 
-		if je.Status.Phase == dispatcherv1alpha1.JobExecutionFailedPhase {
-			log.Info("JobExecution failed to complete", "JobExecution", je.Name)
-			if err := r.Delete(ctx, je); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			jobExecutionsFailuresTotal.Inc()
-			return ctrl.Result{}, nil
-		}
-
+		// Create a job
 		createdJob, err := r.createJob(ctx, je, jt)
 		if err != nil {
 			log.Error(err, "Error generating Job")
 			return ctrl.Result{}, err
 		}
 
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    waitingCondition,
+			Status:  metav1.ConditionTrue,
+			Reason:  "JobCreated",
+			Message: "Job created, waiting to be executed",
+		})
 		jobRef, err := ref.GetReference(r.Scheme, createdJob)
 		if err != nil {
 			log.Error(err, "Unable to make reference to job", "job", job)
@@ -141,24 +189,57 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Eventf(je, "Normal", "Created", "Job %s created", createdJob.Name)
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Created", "Job %s created", createdJob.Name)
 		log.Info("Created Job, requeueing")
 		jobExecutionsTotal.Inc()
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if job.Status.CompletionTime != nil && je.Status.Phase != dispatcherv1alpha1.JobExecutionCompletedPhase {
-		r.Recorder.Eventf(je, "Normal", "Completed", "Job %s completed running", job.Name)
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionCompletedPhase
+	// Check status of JobExecution's owned Job
+	if isJobStatusConditionTrue(job, batchv1.JobComplete) {
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Completed", "Job %s completed running", job.Name)
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    succeededCondition,
+			Status:  metav1.ConditionTrue,
+			Reason:  "JobSucceeded",
+			Message: "Job ran successfully",
+		})
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    runningCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  "JobCompleted",
+			Message: "Job completed running",
+		})
 		jobExecutionsSuccessTotal.Inc()
-	} else if len(job.Status.Conditions) > 0 && hasFailedCondition(job) {
-		r.Recorder.Eventf(je, "Warning", "Failed", "Job %s failed running", job.Name)
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionFailedPhase
+	} else if isJobStatusConditionTrue(job, batchv1.JobFailed) {
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    succeededCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  "JobFailed",
+			Message: "Job completed with a failed exit status",
+		})
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    runningCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  "JobCompleted",
+			Message: "Job completed running",
+		})
+		r.Recorder.Eventf(je, corev1.EventTypeWarning, "Failed", "Job %s failed running", job.Name)
+		jobExecutionsFailuresTotal.Inc()
 	} else if job.Status.StartTime != nil {
-		r.Recorder.Eventf(je, "Normal", "Started", "Job %s started running", job.Name)
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionActivePhase
-	} else {
-		je.Status.Phase = dispatcherv1alpha1.JobExecutionWaitingPhase
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    waitingCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  "JobRunning",
+			Message: "Job is running",
+		})
+		meta.SetStatusCondition(&je.Status.Conditions, metav1.Condition{
+			Type:    runningCondition,
+			Status:  metav1.ConditionTrue,
+			Reason:  "JobRunning",
+			Message: "Job is running",
+		})
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Started", "Job %s started running", job.Name)
 	}
 
 	if err := r.Status().Update(ctx, je); err != nil {
@@ -167,16 +248,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	return ctrl.Result{RequeueAfter: time.Second * 15}, nil
-}
-
-// Returns true if there is at least one condition from the job that has the failed status.
-func hasFailedCondition(job *batchv1.Job) bool {
-	for _, c := range job.Status.Conditions {
-		if c.Type == batchv1.JobFailed {
-			return true
-		}
-	}
-	return false
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -201,49 +272,48 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 	if len(job.ObjectMeta.Name) == 0 && len(job.ObjectMeta.GenerateName) == 0 {
 		job.ObjectMeta.GenerateName = jobExecution.ObjectMeta.Name + "-"
 	}
+
 	if job.ObjectMeta.Labels == nil {
 		job.ObjectMeta.Labels = make(map[string]string)
 	}
-	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.UID)
+	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.GetUID())
 	job.ObjectMeta.Labels["job-execution-name"] = jobExecution.Name
 
 	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
 	return job, nil
 }
 
+// Gets the JobTemplate from a jobExecution.
 func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*dispatcherv1alpha1.JobTemplate, error) {
 	jt := new(dispatcherv1alpha1.JobTemplate)
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      jobExecution.Spec.JobTemplateName,
 		Namespace: jobExecution.Namespace,
 	}, jt); err != nil {
-		jobExecution.Status.Phase = dispatcherv1alpha1.JobExecutionInvalidPhase
-		if err := r.Status().Update(ctx, jobExecution); err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
 	return jt, nil
 }
 
+// Gets the Job from a jobExecution
 func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
-	opts := []client.ListOption{
-		client.InNamespace(jobExecution.Namespace),
-		client.MatchingLabels{"controller-uid": string(jobExecution.UID)},
-	}
-
-	jobList := new(batchv1.JobList)
-	if err := r.List(ctx, jobList, opts...); err != nil {
-		return nil, err
-	}
-
-	if len(jobList.Items) == 0 {
+	if len(jobExecution.Status.Job.Name) == 0 {
 		return nil, nil
 	}
-
-	return &jobList.Items[0], nil
+	job := new(batchv1.Job)
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      jobExecution.Status.Job.Name,
+		Namespace: jobExecution.Namespace,
+	}, job); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return job, nil
 }
 
+// Creates a Job from a jobExecution and its jobTemplate.
 func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*batchv1.Job, error) {
 	job, err := r.generateJobFromTemplate(jobExecution, jobTemplate)
 	if err != nil {
@@ -253,4 +323,17 @@ func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *di
 		return nil, err
 	}
 	return job, nil
+}
+
+// Returns true if the Job has a condition that matches the given status.
+func isJobStatusConditionTrue(job *batchv1.Job, conditionType batchv1.JobConditionType) bool {
+	if job.Status.Conditions == nil {
+		return false
+	}
+	for _, condition := range job.Status.Conditions {
+		if condition.Type == conditionType && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
