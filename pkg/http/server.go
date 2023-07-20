@@ -24,6 +24,7 @@ func NewServer(address, defaultNamespace string, client client.Client) *Server {
 	return &Server{&http.Server{Addr: address}, client, defaultNamespace}
 }
 
+// Starts the Web server.
 func (s *Server) Start(ctx context.Context) error {
 	log := ctrllog.FromContext(ctx)
 	log.Info("Starting Web Server")
