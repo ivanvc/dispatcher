@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
+	"github.com/ivanvc/dispatcher/pkg/api/v1beta1"
 )
 
 var jobTemplateSpec = &batchv1.JobTemplateSpec{
@@ -40,8 +40,8 @@ var jobTemplateSpec = &batchv1.JobTemplateSpec{
 }
 
 func TestBuildJobWithAJSON(t *testing.T) {
-	je := &v1alpha1.JobExecution{
-		Spec: v1alpha1.JobExecutionSpec{
+	je := &v1beta1.JobExecution{
+		Spec: v1beta1.JobExecutionSpec{
 			JobTemplateName: "test",
 			Payload: `{
 "hello": "world"
@@ -66,8 +66,8 @@ func TestBuildJobWithAJSON(t *testing.T) {
 }
 
 func TestBuildJobWithoutAJSON(t *testing.T) {
-	je := &v1alpha1.JobExecution{
-		Spec: v1alpha1.JobExecutionSpec{
+	je := &v1beta1.JobExecution{
+		Spec: v1beta1.JobExecutionSpec{
 			JobTemplateName: "test",
 			Payload: `
 "hello": "world"
@@ -92,7 +92,7 @@ func TestBuildJobWithAnError(t *testing.T) {
 		},
 	}
 
-	if _, err := BuildJob(jt, &v1alpha1.JobExecution{}); err == nil {
+	if _, err := BuildJob(jt, &v1beta1.JobExecution{}); err == nil {
 		t.Error("Expecting error, got nothing")
 	}
 }
@@ -103,7 +103,7 @@ func TestExecuteTemplateWithAJobTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var jt v1alpha1.JobTemplate
+	var jt v1beta1.JobTemplate
 	if err := json.Unmarshal(b, &jt); err != nil {
 		t.Fatal(err)
 	}
