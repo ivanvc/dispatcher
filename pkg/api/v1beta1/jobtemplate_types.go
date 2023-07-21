@@ -14,16 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
-
-	"github.com/ivanvc/dispatcher/pkg/api/v1beta1"
 )
 
+// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // JobTemplate is the Schema for the jobtemplate API
 type JobTemplate struct {
@@ -47,23 +45,8 @@ type JobTemplateList struct {
 	Items           []JobTemplate `json:"items"`
 }
 
-// Implements conversion to v1beta1.
-func (j *JobTemplate) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta1.JobTemplate)
-	dst.ObjectMeta = j.ObjectMeta
-	dst.Spec.JobTemplateSpec = j.Spec.JobTemplateSpec
-
-	return nil
-}
-
-// Converts from the Hub version (v1beta1) to this version.
-func (j *JobTemplate) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta1.JobTemplate)
-	j.ObjectMeta = src.ObjectMeta
-	j.Spec.JobTemplateSpec = src.Spec.JobTemplateSpec
-
-	return nil
-}
+// Set v1beta1 as the Hub.
+func (*JobTemplate) Hub() {}
 
 func init() {
 	SchemeBuilder.Register(&JobTemplate{}, &JobTemplateList{})
