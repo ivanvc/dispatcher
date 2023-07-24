@@ -14,14 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
-
-	"github.com/ivanvc/dispatcher/pkg/api/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -67,6 +64,7 @@ const (
 	JobExecutionSucceeded JobExecutionConditionType = "Succeeded"
 )
 
+//+kubebuilder:storageversion
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -88,33 +86,8 @@ type JobExecutionList struct {
 	Items           []JobExecution `json:"items"`
 }
 
-// Implements conversion to v1beta1.
-func (j *JobExecution) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta1.JobExecution)
-	dst.ObjectMeta = j.ObjectMeta
-
-	dst.Spec.JobTemplateName = j.Spec.JobTemplateName
-	dst.Spec.Payload = j.Spec.Payload
-
-	dst.Status.Conditions = j.Status.Conditions
-	dst.Status.Job = j.Status.Job
-
-	return nil
-}
-
-// Converts from the Hub version (v1beta1) to this version.
-func (j *JobExecution) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta1.JobExecution)
-	j.ObjectMeta = src.ObjectMeta
-
-	j.Spec.JobTemplateName = src.Spec.JobTemplateName
-	j.Spec.Payload = src.Spec.Payload
-
-	j.Status.Conditions = src.Status.Conditions
-	j.Status.Job = src.Status.Job
-
-	return nil
-}
+// Set v1beta1 as the Hub.
+func (*JobExecution) Hub() {}
 
 func init() {
 	SchemeBuilder.Register(&JobExecution{}, &JobExecutionList{})

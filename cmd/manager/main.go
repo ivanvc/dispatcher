@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
+	dispatcherv1beta1 "github.com/ivanvc/dispatcher/pkg/api/v1beta1"
 	"github.com/ivanvc/dispatcher/pkg/controllers"
 	"github.com/ivanvc/dispatcher/pkg/http"
 	//+kubebuilder:scaffold:imports
@@ -46,6 +47,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(dispatcherv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(dispatcherv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

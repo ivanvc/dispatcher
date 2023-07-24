@@ -34,15 +34,15 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
+	dispatcherv1beta1 "github.com/ivanvc/dispatcher/pkg/api/v1beta1"
 	"github.com/ivanvc/dispatcher/pkg/template"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	waitingCondition   = string(dispatcherv1alpha1.JobExecutionWaiting)
-	runningCondition   = string(dispatcherv1alpha1.JobExecutionRunning)
-	succeededCondition = string(dispatcherv1alpha1.JobExecutionSucceeded)
+	waitingCondition   = string(dispatcherv1beta1.JobExecutionWaiting)
+	runningCondition   = string(dispatcherv1beta1.JobExecutionRunning)
+	succeededCondition = string(dispatcherv1beta1.JobExecutionSucceeded)
 )
 
 var (
@@ -87,7 +87,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := ctrllog.FromContext(ctx)
 
 	// Fetch the JobExecution
-	je := new(dispatcherv1alpha1.JobExecution)
+	je := new(dispatcherv1beta1.JobExecution)
 	if err := r.Get(ctx, req.NamespacedName, je); err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("JobExecution resource not found, ignoring as resouce must be deleted")
@@ -253,12 +253,12 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager sets up the controller with the Manager.
 func (r *JobExecutionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&dispatcherv1alpha1.JobExecution{}).
+		For(&dispatcherv1beta1.JobExecution{}).
 		Complete(r)
 }
 
 // Generates a Job from a JobTemplate, by applying JobExecution's fields.
-func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*batchv1.Job, error) {
+func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatcherv1beta1.JobExecution, jobTemplate *dispatcherv1beta1.JobTemplate) (*batchv1.Job, error) {
 	jobTpl, err := template.BuildJob(&jobTemplate.Spec.JobTemplateSpec, jobExecution)
 	if err != nil {
 		return nil, err
@@ -284,8 +284,8 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 }
 
 // Gets the JobTemplate from a jobExecution.
-func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*dispatcherv1alpha1.JobTemplate, error) {
-	jt := new(dispatcherv1alpha1.JobTemplate)
+func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecution *dispatcherv1beta1.JobExecution) (*dispatcherv1beta1.JobTemplate, error) {
+	jt := new(dispatcherv1beta1.JobTemplate)
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      jobExecution.Spec.JobTemplateName,
 		Namespace: jobExecution.Namespace,
@@ -296,7 +296,7 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 }
 
 // Gets the Job from a jobExecution
-func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution) (*batchv1.Job, error) {
+func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1beta1.JobExecution) (*batchv1.Job, error) {
 	if len(jobExecution.Status.Job.Name) == 0 {
 		return nil, nil
 	}
@@ -314,7 +314,7 @@ func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispa
 }
 
 // Creates a Job from a jobExecution and its jobTemplate.
-func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1alpha1.JobExecution, jobTemplate *dispatcherv1alpha1.JobTemplate) (*batchv1.Job, error) {
+func (r *JobExecutionReconciler) createJob(ctx context.Context, jobExecution *dispatcherv1beta1.JobExecution, jobTemplate *dispatcherv1beta1.JobTemplate) (*batchv1.Job, error) {
 	job, err := r.generateJobFromTemplate(jobExecution, jobTemplate)
 	if err != nil {
 		return nil, err
