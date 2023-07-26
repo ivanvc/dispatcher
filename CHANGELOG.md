@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - default: uses base, and creates the namespace on top of it
   - with-prometheus-monitoring: uses base, and enables prometheus monitoring
 - Replace JobExecution Status' Phase with Conditions
+- Bump CRD version to v1beta1
 
 ## [0.3.2] - 2023-03-21
 ## Fixed
