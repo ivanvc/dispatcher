@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed
 - Allow the controller manager to write events
+- Improve error messages when status fails to update
 
 ## [0.4.0] - 2023-07-27
 ## Added

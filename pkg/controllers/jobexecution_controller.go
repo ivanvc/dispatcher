@@ -108,11 +108,11 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Message: "Starting reconciliation",
 		})
 		if err := r.Status().Update(ctx, je); err != nil {
-			log.Error(err, "Failed to update JobExecution status")
+			log.Error(err, "Failed to set initial JobExecution status")
 			return ctrl.Result{}, err
 		}
 
-		// Re-fetch JobExecution to avoid having to re-run reocnciliation loop
+		// Re-fetch JobExecution to avoid having to re-run reconciliation loop
 		if err := r.Get(ctx, req.NamespacedName, je); err != nil {
 			log.Error(err, "Failed to re-fetch JobExecution")
 			return ctrl.Result{}, err
@@ -128,7 +128,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Message: "Failed fetching JobTemplate",
 		})
 		if err := r.Status().Update(ctx, je); err != nil {
-			log.Error(err, "Failed to update JobExecution status")
+			log.Error(err, "Failed to set JobExecution status to failed fetching job template")
 			return ctrl.Result{}, err
 		}
 
@@ -186,7 +186,7 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		je.Status.Job = *jobRef
 
 		if err := r.Status().Update(ctx, je); err != nil {
-			log.Error(err, "Failed to update JobExecution status")
+			log.Error(err, "Failed to update JobExecution status when creating job")
 			return ctrl.Result{}, err
 		}
 
