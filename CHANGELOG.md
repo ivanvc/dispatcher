@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 - Allow the controller manager to write events
 - Improve error messages when status fails to update
+- Get the Job from the JobExecution using a the controller-uid label rather than
+  the status
 
 ## [0.4.0] - 2023-07-27
 ## Added
