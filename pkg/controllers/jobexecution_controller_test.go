@@ -213,14 +213,11 @@ var _ = Describe("JobExecution controller", func() {
 		By("Creating a v1alpha1 JobTemplate")
 		jobTemplateName := "v1alpha1-jobtemplate"
 		v1alpha1JobTemplate := new(dispatcherv1alpha1.JobTemplate)
-		fmt.Println("v1beta1", jobTemplate)
-		fmt.Println("v1alpha1 before", v1alpha1JobTemplate)
 		v1alpha1JobTemplate.ConvertFrom(jobTemplate)
 		v1alpha1JobTemplate.ObjectMeta = metav1.ObjectMeta{
 			Name:      jobTemplateName,
 			Namespace: namespaceName,
 		}
-		fmt.Println("v1alpha1 after", v1alpha1JobTemplate)
 
 		err := k8sClient.Create(ctx, v1alpha1JobTemplate)
 		Expect(err).To(Not(HaveOccurred()))
