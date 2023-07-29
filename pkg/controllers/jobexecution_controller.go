@@ -179,14 +179,15 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Message: "Job created, waiting to be executed",
 		})
 
+		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Created", "Job %s created", createdJob.Name)
+		log.Info("Created Job, requeueing")
+		jobExecutionsTotal.Inc()
+
 		if err := r.Status().Update(ctx, je); err != nil {
 			log.Error(err, "Failed to update JobExecution status when creating job")
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Created", "Job %s created", createdJob.Name)
-		log.Info("Created Job, requeueing")
-		jobExecutionsTotal.Inc()
 		return ctrl.Result{Requeue: true}, nil
 	}
 
