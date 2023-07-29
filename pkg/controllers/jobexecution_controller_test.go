@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	dispatcherv1alpha1 "github.com/ivanvc/dispatcher/pkg/api/v1alpha1"
@@ -154,12 +155,6 @@ var _ = Describe("JobExecution controller", func() {
 			return k8sClient.Get(ctx, typeNamespaceName, job)
 		}, time.Minute, time.Second).Should(Succeed())
 
-		By("Checking the reference to the Job")
-		Expect(jobExecution.Status.Job.Kind).To(Equal("Job"))
-		Expect(jobExecution.Status.Job.Name).To(Equal(job.Name))
-		Expect(jobExecution.Status.Job.Namespace).To(Equal(job.Namespace))
-		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
-
 		By("Checking the labels from the generated Job")
 		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("controller-uid", string(jobExecution.UID)))
 		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("job-execution-name", jobExecutionName))
@@ -181,6 +176,12 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, waitingCondition)).To(BeTrue())
 		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
 
+		By("Checking the reference to the Job")
+		Expect(jobExecution.Status.Job.Kind).To(Equal("Job"))
+		Expect(jobExecution.Status.Job.Name).To(Equal(job.Name))
+		Expect(jobExecution.Status.Job.Namespace).To(Equal(job.Namespace))
+		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
+
 		By("Updating the JobExecution status when Job finished running")
 		job.Status.Conditions = []batchv1.JobCondition{{
 			Type:   batchv1.JobComplete,
@@ -199,8 +200,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
-		jobExecution.Status.Job.Name = ""
-		k8sClient.Status().Update(ctx, jobExecution)
+		job.Labels["controller-uid"] = ""
+		k8sClient.Update(ctx, job)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -268,12 +269,6 @@ var _ = Describe("JobExecution controller", func() {
 			return k8sClient.Get(ctx, typeNamespaceName, job)
 		}, time.Minute, time.Second).Should(Succeed())
 
-		By("Checking the reference to the Job")
-		Expect(jobExecution.Status.Job.Kind).To(Equal("Job"))
-		Expect(jobExecution.Status.Job.Name).To(Equal(job.Name))
-		Expect(jobExecution.Status.Job.Namespace).To(Equal(job.Namespace))
-		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
-
 		By("Checking the labels from the generated Job")
 		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("controller-uid", string(jobExecution.UID)))
 		Expect(job.ObjectMeta.Labels).To(HaveKeyWithValue("job-execution-name", jobExecutionName))
@@ -295,6 +290,12 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, waitingCondition)).To(BeTrue())
 		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, runningCondition)).To(BeTrue())
 
+		By("Checking the reference to the Job")
+		Expect(jobExecution.Status.Job.Kind).To(Equal("Job"))
+		Expect(jobExecution.Status.Job.Name).To(Equal(job.Name))
+		Expect(jobExecution.Status.Job.Namespace).To(Equal(job.Namespace))
+		Expect(jobExecution.Status.Job.UID).To(Equal(job.UID))
+
 		By("Updating the JobExecution status when Job finished running")
 		job.Status.Conditions = []batchv1.JobCondition{{
 			Type:   batchv1.JobComplete,
@@ -313,8 +314,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(meta.IsStatusConditionTrue(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
-		jobExecution.Status.Job.Name = ""
-		k8sClient.Status().Update(ctx, jobExecution)
+		job.Labels["controller-uid"] = ""
+		k8sClient.Update(ctx, job)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})
@@ -349,11 +350,22 @@ var _ = Describe("JobExecution controller", func() {
 		})
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
 
-		typeNamespaceName.Name = jobExecution.Status.Job.Name
-		job := &batchv1.Job{}
 		By("Checking if the Job from the JobExecution was created")
+		opts := []client.ListOption{
+			client.InNamespace(jobExecution.Namespace),
+			client.MatchingLabels{"controller-uid": string(jobExecution.GetUID())},
+		}
+		jobList := new(batchv1.JobList)
+		job := new(batchv1.Job)
 		Eventually(func() error {
-			return k8sClient.Get(ctx, typeNamespaceName, job)
+			if err := k8sClient.List(ctx, jobList, opts...); err != nil {
+				return err
+			}
+			if len(jobList.Items) == 0 {
+				return fmt.Errorf("Empty job list")
+			}
+			job = &jobList.Items[0]
+			return nil
 		}, time.Minute, time.Second).Should(Succeed())
 
 		By("Checking the generated name for the Job")
@@ -385,11 +397,22 @@ var _ = Describe("JobExecution controller", func() {
 		})
 		k8sClient.Get(ctx, typeNamespaceName, jobExecution)
 
-		typeNamespaceName.Name = jobExecution.Status.Job.Name
-		job := &batchv1.Job{}
 		By("Checking if the Job from the JobExecution was created")
+		opts := []client.ListOption{
+			client.InNamespace(jobExecution.Namespace),
+			client.MatchingLabels{"controller-uid": string(jobExecution.GetUID())},
+		}
+		jobList := new(batchv1.JobList)
+		job := new(batchv1.Job)
 		Eventually(func() error {
-			return k8sClient.Get(ctx, typeNamespaceName, job)
+			if err := k8sClient.List(ctx, jobList, opts...); err != nil {
+				return err
+			}
+			if len(jobList.Items) == 0 {
+				return fmt.Errorf("Empty job list")
+			}
+			job = &jobList.Items[0]
+			return nil
 		}, time.Minute, time.Second).Should(Succeed())
 
 		By("Checking the generated name for the Job")
@@ -468,8 +491,8 @@ var _ = Describe("JobExecution controller", func() {
 		Expect(meta.IsStatusConditionFalse(jobExecution.Status.Conditions, succeededCondition)).To(BeTrue())
 
 		By("Deleting the JobExecution once the Job is removed")
-		jobExecution.Status.Job.Name = "other-name"
-		k8sClient.Status().Update(ctx, jobExecution)
+		job.Labels["controller-uid"] = ""
+		k8sClient.Update(ctx, job)
 		_, err = jobExecutionReconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: typeNamespaceName,
 		})

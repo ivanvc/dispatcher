@@ -178,12 +178,6 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Reason:  "JobCreated",
 			Message: "Job created, waiting to be executed",
 		})
-		jobRef, err := ref.GetReference(r.Scheme, createdJob)
-		if err != nil {
-			log.Error(err, "Unable to make reference to job", "job", job)
-			return ctrl.Result{}, err
-		}
-		je.Status.Job = *jobRef
 
 		if err := r.Status().Update(ctx, je); err != nil {
 			log.Error(err, "Failed to update JobExecution status when creating job")
@@ -243,6 +237,15 @@ func (r *JobExecutionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.Recorder.Eventf(je, corev1.EventTypeNormal, "Started", "Job %s started running", job.Name)
 	}
 
+	if len(je.Status.Job.Name) == 0 {
+		jobRef, err := ref.GetReference(r.Scheme, job)
+		if err != nil {
+			log.Error(err, "Unable to make reference to job", "job", job)
+			return ctrl.Result{}, err
+		}
+		je.Status.Job = *jobRef
+	}
+
 	if err := r.Status().Update(ctx, je); err != nil {
 		log.Error(err, "Failed to update JobExecution status")
 		return ctrl.Result{}, err
@@ -269,16 +272,16 @@ func (r *JobExecutionReconciler) generateJobFromTemplate(jobExecution *dispatche
 		Spec:       jobTpl.Spec,
 	}
 
-	job.ObjectMeta.Namespace = jobTemplate.Namespace
-	if len(job.ObjectMeta.Name) == 0 && len(job.ObjectMeta.GenerateName) == 0 {
-		job.ObjectMeta.GenerateName = jobExecution.ObjectMeta.Name + "-"
+	job.Namespace = jobTemplate.Namespace
+	if len(job.Name) == 0 && len(job.GenerateName) == 0 {
+		job.GenerateName = jobExecution.Name + "-"
 	}
 
-	if job.ObjectMeta.Labels == nil {
-		job.ObjectMeta.Labels = make(map[string]string)
+	if job.Labels == nil {
+		job.Labels = make(map[string]string)
 	}
-	job.ObjectMeta.Labels["controller-uid"] = string(jobExecution.GetUID())
-	job.ObjectMeta.Labels["job-execution-name"] = jobExecution.Name
+	job.Labels["controller-uid"] = string(jobExecution.GetUID())
+	job.Labels["job-execution-name"] = jobExecution.Name
 
 	ctrl.SetControllerReference(jobExecution, job, r.Scheme)
 	return job, nil
@@ -298,20 +301,20 @@ func (r *JobExecutionReconciler) getJobTemplate(ctx context.Context, jobExecutio
 
 // Gets the Job from a jobExecution
 func (r *JobExecutionReconciler) getJob(ctx context.Context, jobExecution *dispatcherv1beta1.JobExecution) (*batchv1.Job, error) {
-	if len(jobExecution.Status.Job.Name) == 0 {
-		return nil, nil
+	opts := []client.ListOption{
+		client.InNamespace(jobExecution.Namespace),
+		client.MatchingLabels{"controller-uid": string(jobExecution.GetUID())},
 	}
-	job := new(batchv1.Job)
-	if err := r.Get(ctx, types.NamespacedName{
-		Name:      jobExecution.Status.Job.Name,
-		Namespace: jobExecution.Namespace,
-	}, job); err != nil {
-		if errors.IsNotFound(err) {
-			return nil, nil
-		}
+
+	jobList := new(batchv1.JobList)
+	if err := r.List(ctx, jobList, opts...); err != nil {
 		return nil, err
 	}
-	return job, nil
+	if len(jobList.Items) == 0 {
+		return nil, nil
+	}
+
+	return &jobList.Items[0], nil
 }
 
 // Creates a Job from a jobExecution and its jobTemplate.
