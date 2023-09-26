@@ -1,0 +1,7 @@
+apiVersion: dispatcher.ivan.vc/v1alpha1
+kind: JobExecution
+metadata:
+  name: jobexecution-sample
+spec:
+  jobTemplateName: jobtemplate-sample
+  payload: test-payload
