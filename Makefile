@@ -87,7 +87,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases crd:generateEmbeddedObjectMeta=true
+	$(CONTROLLER_GEN) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases crd:generateEmbeddedObjectMeta=true
 	find config/crd/bases/ -name '*.yaml' -exec bash -c 'file=$$(basename {}); rm -f config/$$file' \;
 
 .PHONY: generate
