@@ -83,6 +83,9 @@ func (e *executeJobHandler) handle(w http.ResponseWriter, req *http.Request) {
 
 	log.Info("Creating JobExecution", "name", name, "namespace", ns)
 	jobExecution := createJobExecution(jt, req.Body)
+	if e.logJobExecutionPayloads {
+		log.Info("JobExecution payload", "jobExecution", jobExecution)
+	}
 
 	if err := e.Create(ctx, jobExecution); err != nil {
 		jobRequestsFailuresTotal.Inc()

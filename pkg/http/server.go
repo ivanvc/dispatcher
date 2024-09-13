@@ -11,7 +11,8 @@ import (
 type Server struct {
 	*http.Server
 	client.Client
-	defaultNamespace string
+	defaultNamespace        string
+	logJobExecutionPayloads bool
 }
 
 // NeedLeaderElection implements the LeaderElectionRunnable interface, which
@@ -20,8 +21,8 @@ func (*Server) NeedLeaderElection() bool {
 	return false
 }
 
-func NewServer(address, defaultNamespace string, client client.Client) *Server {
-	return &Server{&http.Server{Addr: address}, client, defaultNamespace}
+func NewServer(address, defaultNamespace string, logJobExecutionPayloads bool, client client.Client) *Server {
+	return &Server{&http.Server{Addr: address}, client, defaultNamespace, logJobExecutionPayloads}
 }
 
 // Starts the Web server.

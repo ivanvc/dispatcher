@@ -57,6 +57,7 @@ func main() {
 	var probeAddr string
 	var webServerAddr string
 	var defaultNamespace string
+	var logJobExecutionPayloads bool
 	flag.StringVar(&webServerAddr, "web-server-bind-address", ":8000",
 		"The address the web server endpoint binds to.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080",
@@ -68,6 +69,8 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&defaultNamespace, "default-namespace", "default",
 		"The default namespace to use when no namespace is specified when invoking a job via HTTP.")
+	flag.BoolVar(&logJobExecutionPayloads, "log-job-execution-payloads", false,
+		"Enable logging job execution payloads.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -119,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := mgr.Add(http.NewServer(webServerAddr, defaultNamespace, mgr.GetClient())); err != nil {
+	if err := mgr.Add(http.NewServer(webServerAddr, defaultNamespace, logJobExecutionPayloads, mgr.GetClient())); err != nil {
 		setupLog.Error(err, "Error running Web Server")
 		os.Exit(1)
 	}
