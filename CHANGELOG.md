@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - TBA
 
+## [0.5.2] - 2024-09-23
+## Added
+- Allow to log job execution payload by specifying the `--log-job-execution-payloads` argument
+- Bumped dependencies
+
 ## [0.4.1] - 2023-08-01
 ## Fixed
 - Allow the controller manager to write events
@@ -85,8 +90,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/ivanvc/dispatcher/compare/0.4.1...HEAD
-[0.4.0]: https://github.com/ivanvc/dispatcher/compare/0.4.0...0.4.1
+[Unreleased]: https://github.com/ivanvc/dispatcher/compare/0.5.2...HEAD
+[0.5.2]: https://github.com/ivanvc/dispatcher/compare/0.4.0...0.5.2
+[0.4.1]: https://github.com/ivanvc/dispatcher/compare/0.4.1...0.4.1
 [0.4.0]: https://github.com/ivanvc/dispatcher/compare/0.3.2...0.4.0
 [0.3.2]: https://github.com/ivanvc/dispatcher/compare/0.3.1...0.3.2
 [0.3.1]: https://github.com/ivanvc/dispatcher/compare/0.3.0...0.3.1
