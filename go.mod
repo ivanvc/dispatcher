@@ -2,7 +2,7 @@ module github.com/ivanvc/dispatcher
 
 go 1.23
 
-toolchain go1.23.4
+toolchain go1.23.5
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
