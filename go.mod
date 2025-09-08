@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/onsi/ginkgo/v2 v2.25.2
+	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.38.2
 	github.com/prometheus/client_golang v1.23.0
 	k8s.io/api v0.34.0
