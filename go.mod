@@ -6,7 +6,7 @@ toolchain go1.25.3
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/onsi/ginkgo/v2 v2.26.0
+	github.com/onsi/ginkgo/v2 v2.27.1
 	github.com/onsi/gomega v1.38.2
 	github.com/prometheus/client_golang v1.23.2
 	k8s.io/api v0.34.1
