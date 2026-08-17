@@ -18,15 +18,15 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{github.head_ref}}
-      if: contains(steps.metadata.outputs.dependency-names, 'golang') && steps.metada.outputs.package-ecosystem == 'docker'
+      if: contains(steps.metadata.outputs.dependency-names, 'golang') && steps.metadata.outputs.package-ecosystem == 'docker'
     - name: Set up Go
-      if: contains(steps.metadata.outputs.dependency-names, 'golang') && steps.metada.outputs.package-ecosystem == 'docker'
+      if: contains(steps.metadata.outputs.dependency-names, 'golang') && steps.metadata.outputs.package-ecosystem == 'docker'
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version-file: 'go.mod'
         cache: true
     - name: Bump Golang version
-      if: contains(steps.metadata.outputs.dependency-names, 'golang') && steps.metada.outputs.package-ecosystem == 'docker'
+      if: contains(steps.metadata.outputs.dependency-names, 'golang') && steps.metadata.outputs.package-ecosystem == 'docker'
       run: |
         go mod edit -toolchain go${{steps.metadata.outputs.new-version}}
         git config user.name "github-actions[bot]"
